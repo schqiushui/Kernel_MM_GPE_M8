@@ -156,7 +156,7 @@ static void key_gc_keyring(struct key *keyring, time_t limit)
 	loop = klist->nkeys;
 	smp_rmb();
 	for (loop--; loop >= 0; loop--) {
-		struct key *key = klist->keys[loop];
+		struct key *key = rcu_dereference(klist->keys[loop]);
 		if (key_is_dead(key, limit))
 			goto do_gc;
 	}
