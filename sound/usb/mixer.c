@@ -296,7 +296,7 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request, int v
 	err = snd_usb_autoresume(cval->mixer->chip);
 	if (err < 0)
 		return -EIO;
-	mutex_lock(&chip->shutdown_mutex);
+	down_read(&chip->shutdown_rwsem);
 	while (timeout-- > 0) {
 		if (chip->shutdown)
 			break;
@@ -314,7 +314,7 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request, int v
 	err = -EINVAL;
 
  out:
-	mutex_unlock(&chip->shutdown_mutex);
+	up_read(&chip->shutdown_rwsem);
 	snd_usb_autosuspend(cval->mixer->chip);
 	return err;
 }
@@ -341,7 +341,7 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int v
 	if (ret)
 		goto error;
 
-	mutex_lock(&chip->shutdown_mutex);
+	down_read(&chip->shutdown_rwsem);
 	if (chip->shutdown)
 		ret = -ENODEV;
 	else {
@@ -350,7 +350,7 @@ static int get_ctl_value_v2(struct usb_mixer_elem_info *cval, int request, int v
 			      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
 			      validx, idx, buf, size);
 	}
-	mutex_unlock(&chip->shutdown_mutex);
+	up_read(&chip->shutdown_rwsem);
 	snd_usb_autosuspend(chip);
 
 	if (ret < 0) {
@@ -457,7 +457,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	err = snd_usb_autoresume(chip);
 	if (err < 0)
 		return -EIO;
-	mutex_lock(&chip->shutdown_mutex);
+	down_read(&chip->shutdown_rwsem);
 	while (timeout-- > 0) {
 		if (chip->shutdown)
 			break;
@@ -475,7 +475,7 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	err = -EINVAL;
 
  out:
-	mutex_unlock(&chip->shutdown_mutex);
+	up_read(&chip->shutdown_rwsem);
 	snd_usb_autosuspend(chip);
 	return err;
 }
