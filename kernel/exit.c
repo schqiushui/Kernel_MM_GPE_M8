@@ -1008,7 +1008,26 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		unsigned long maxrss;
 		cputime_t tgutime, tgstime;
 
-		thread_group_times(p, &tgutime, &tgstime);
+		/*
+		 * The resource counters for the group leader are in its
+		 * own task_struct.  Those for dead threads in the group
+		 * are in its signal_struct, as are those for the child
+		 * processes it has previously reaped.  All these
+		 * accumulate in the parent's signal_struct c* fields.
+		 *
+		 * We don't bother to take a lock here to protect these
+		 * p->signal fields, because they are only touched by
+		 * __exit_signal, which runs with tasklist_lock
+		 * write-locked anyway, and so is excluded here.  We do
+		 * need to protect the access to parent->signal fields,
+		 * as other threads in the parent group can be right
+		 * here reaping other children at the same time.
+		 *
+		 * We use thread_group_cputime_adjusted() to get times for the thread
+		 * group, which consolidates times for all threads in the
+		 * group including the group leader.
+		 */
+		thread_group_cputime_adjusted(p, &tgutime, &tgstime);
 		spin_lock_irq(&p->real_parent->sighand->siglock);
 		psig = p->real_parent->signal;
 		sig = p->signal;
