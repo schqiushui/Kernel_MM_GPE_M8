@@ -85,7 +85,7 @@ static unsigned long driver_alloc_total_pages(void)
 static inline unsigned long cached_pages(struct sysinfo *i)
 {
 	long cached = global_page_state(NR_FILE_PAGES) -
-	              total_swapcache_pages - i->bufferram;
+	              total_swapcache_pages() - i->bufferram;
 
 	if (cached < 0)
 		cached = 0;

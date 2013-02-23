@@ -93,7 +93,7 @@ e664d5da68fd6214cb4d881e48a84cc4)
    V=6
 ;;
 1181723027468abcda0e1cba6bcfa6a8)
-   # other_file depends on total_swapcache_pages
+   # other_file depends on total_swapcache_pages()
    # and number of MLOCKED pages
    V=8
 ;;

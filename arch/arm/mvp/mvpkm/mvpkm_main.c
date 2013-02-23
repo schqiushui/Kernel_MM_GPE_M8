@@ -274,15 +274,15 @@ other_file_show(struct kobject *kobj,
 		     global_page_state(NR_SHMEM) - global_page_state(NR_MLOCK);
 #elif LOWMEMKILLER_VARIANT == 8
     /*
-     * other_file depends on total_swapcache_pages and
+     * other_file depends on total_swapcache_pages() and
      * number of MLOCKED pages
      */
-     if (global_page_state(NR_SHMEM) + global_page_state(NR_MLOCK) + total_swapcache_pages <
+     if (global_page_state(NR_SHMEM) + global_page_state(NR_MLOCK) + total_swapcache_pages() <
               global_page_state(NR_FILE_PAGES))
               other_file = global_page_state(NR_FILE_PAGES) -
                                              global_page_state(NR_SHMEM) -
                                              global_page_state(NR_MLOCK) -
-                                             total_swapcache_pages;
+                                             total_swapcache_pages();
      else
               other_file = 0;
 #elif defined(NONANDROID)
