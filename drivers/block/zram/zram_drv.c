@@ -229,7 +229,6 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
 	}
 
 	rwlock_init(&meta->tb_lock);
-	mutex_init(&meta->buffer_lock);
 	return meta;
 
 free_table:
@@ -330,12 +329,13 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
 	size = meta->table[index].size;
 
 	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
+		read_unlock(&meta->tb_lock);
 		memset(mem, 0, PAGE_SIZE);
 		return 0;
 	}
 
 	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_RO);
-	if (meta->table[index].size == PAGE_SIZE)
+	if (size == PAGE_SIZE)
 		memcpy(mem, cmem, PAGE_SIZE);
 	else
 		ret = lzo1x_decompress_safe(cmem, size,	mem, &clen);
@@ -449,9 +449,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		if (!is_partial_io(bvec))
 			kunmap_atomic(user_mem);
 		/* Free memory associated with this sector now. */
+		write_lock(&zram->meta->tb_lock);
 		zram_free_page(zram, index);
-
-		atomic_inc(&zram->stats.pages_zero);
 		zram_set_flag(meta, index, ZRAM_ZERO);
 		write_unlock(&zram->meta->tb_lock);
 
@@ -502,6 +501,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	 * Free memory associated with this sector
 	 * before overwriting unused sectors.
 	 */
+	write_lock(&zram->meta->tb_lock);
 	zram_free_page(zram, index);
 
 	meta->table[index].handle = handle;
