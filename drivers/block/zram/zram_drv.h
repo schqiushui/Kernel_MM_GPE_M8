@@ -92,8 +92,10 @@ struct zram_meta {
 
 struct zram {
 	struct zram_meta *meta;
-	struct rw_semaphore lock; /* protect compression buffers and table
-				   * against concurrent read and writes */
+	struct rw_semaphore lock; /* protect compression buffers, table,
+				   * reads and writes
+				   */
+
 	struct request_queue *queue;
 	struct gendisk *disk;
 	int init_done;
