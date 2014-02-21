@@ -206,6 +206,7 @@ struct mdss_data_type {
 	int iommu_ref_cnt;
 	u64 ab[MDSS_MAX_HW_BLK];
 	u64 ib[MDSS_MAX_HW_BLK];
+	bool ulps;
 };
 extern struct mdss_data_type *mdss_res;
 
