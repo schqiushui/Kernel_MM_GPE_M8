@@ -116,22 +116,26 @@ void mdss_dsi_clk_req(struct mdss_dsi_ctrl_pdata *ctrl, int enable)
 		mutex_unlock(&ctrl->cmd_mutex);
 	}
 
-	mdss_dsi_clk_ctrl(ctrl, enable);
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, enable);
 }
 
 void mdss_dsi_pll_relock(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	int i, cnt;
 
-	cnt = ctrl->clk_cnt;
+	/*
+	 * todo: this code does not work very well with dual
+	 * dsi use cases. Need to fix this eventually.
+	 */
+	cnt = ctrl->link_clk_cnt;
 
 	
 	for (i = 0; i < cnt; i++)
-		mdss_dsi_clk_ctrl(ctrl, 0);
+		mdss_dsi_clk_ctrl(ctrl, DSI_LINK_CLKS, 0);
 
 	
 	for (i = 0; i < cnt; i++)
-		mdss_dsi_clk_ctrl(ctrl, 1);
+		mdss_dsi_clk_ctrl(ctrl, DSI_LINK_CLKS, 1);
 }
 
 void mdss_dsi_enable_irq(struct mdss_dsi_ctrl_pdata *ctrl, u32 term)
@@ -604,7 +608,7 @@ int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 
 	pr_debug("%s: Checking BTA status\n", __func__);
 
-	mdss_dsi_clk_ctrl(ctrl_pdata, 1);
+	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 1);
 	spin_lock_irqsave(&ctrl_pdata->mdp_lock, flag);
 	INIT_COMPLETION(ctrl_pdata->bta_comp);
 	mdss_dsi_enable_irq(ctrl_pdata, DSI_BTA_TERM);
@@ -619,7 +623,7 @@ int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		pr_err("%s: DSI BTA error: %i\n", __func__, ret);
 	}
 
-	mdss_dsi_clk_ctrl(ctrl_pdata, 0);
+	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
 	pr_debug("%s: BTA done with ret: %d\n", __func__, ret);
 
 	return ret;
@@ -1195,7 +1199,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	mdss_bus_scale_set_quota(MDSS_HW_DSI0, SZ_1M, SZ_1M);
 	mdss_bus_bandwidth_ctrl(1);
 	pr_debug("%s:  from_mdp=%d pid=%d\n", __func__, from_mdp, current->pid);
-	mdss_dsi_clk_ctrl(ctrl, 1);
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
 
 	rc = mdss_iommu_ctrl(1);
 	if (IS_ERR_VALUE(rc)) {
@@ -1216,7 +1220,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 		mdss_dsi_set_tx_power_mode(1, &ctrl->panel_data);
 
 	mdss_iommu_ctrl(0);
-	mdss_dsi_clk_ctrl(ctrl, 0);
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
 	mdss_bus_scale_set_quota(MDSS_HW_DSI0, 0, 0);
 	mdss_bus_bandwidth_ctrl(0);
 need_lock:
