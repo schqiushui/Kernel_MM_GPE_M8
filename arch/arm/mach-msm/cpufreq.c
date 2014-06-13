@@ -148,7 +148,6 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 			set_acpuclk_footprint(policy->cpu, ACPU_BEFORE_UPDATE_L2_BW);
 #endif
 			freq_index[policy->cpu] = index;
-			update_l2_bw(NULL);
 		}
 #ifdef CONFIG_HTC_DEBUG_FOOTPRINT
 		set_acpuclk_footprint(policy->cpu, ACPU_LEAVE);
@@ -402,14 +401,18 @@ static int __cpuinit msm_cpufreq_cpu_callback(struct notifier_block *nfb,
 	case CPU_DOWN_FAILED:
 		per_cpu(cpufreq_suspend, cpu).device_suspended = 0;
 		break;
+ 	case CPU_DYING:
+ 		clk_disable(cpu_clk[cpu]);
+ 		clk_disable(l2_clk);
+ 		break;
 	/*
 	 * Scale down clock/power of CPU that is dead and scale it back up
 	 * before the CPU is brought up.
 	 */
 	case CPU_DEAD:
 		if (is_clk) {
-			clk_disable_unprepare(cpu_clk[cpu]);
-			clk_disable_unprepare(l2_clk);
+			clk_unprepare(cpu_clk[cpu]);
+			clk_unprepare(l2_clk);
 		}
 		break;
 	case CPU_UP_CANCELED:
