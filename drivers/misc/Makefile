@@ -80,3 +80,6 @@ obj-y += time_helper.o
 obj-$(CONFIG_QPNP_VIBRATOR_PWM) += qpnp-vibrator-pwm.o
 obj-$(CONFIG_UID_CPUTIME) 	+= uid_cputime.o
 obj-$(CONFIG_HPH_HIGHPERF) += sound_control.o
+obj-$(CONFIG_QPNP_VIBRATOR_PWM) += qpnp-vibrator-pwm.o
+obj-$(CONFIG_SOUND_CONTROL_HAX_3_GPL) += sound_control.o
+obj-$(CONFIG_BLX) += blx.o
