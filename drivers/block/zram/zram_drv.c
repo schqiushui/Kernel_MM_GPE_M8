@@ -1151,8 +1151,8 @@ static int create_device(struct zram *zram, int device_id)
 	zram->disk->private_data = zram;
 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
 
-	__set_bit(QUEUE_FLAG_FAST, &zram->queue->queue_flags);
-	
+	__set_bit(QUEUE_FLAG_FAST, &zram->disk->queue->queue_flags);
+	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
 	set_capacity(zram->disk, 0);
 	/* zram devices sort of resembles non-rotational disks */
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
