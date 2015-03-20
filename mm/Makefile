@@ -56,3 +56,4 @@ obj-$(CONFIG_CLEANCACHE) += cleancache.o
 obj-$(CONFIG_PROCESS_RECLAIM)	+= process_reclaim.o
 obj-$(CONFIG_ZPOOL)	+= zpool.o
 obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
+
