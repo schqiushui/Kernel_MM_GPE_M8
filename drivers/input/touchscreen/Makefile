@@ -91,3 +91,4 @@ obj-$(CONFIG_TOUCHSCREEN_HIMAX_ES)		+= himax_852xES.o himax_platform.o
 obj-$(CONFIG_TOUCHSCREEN_HIMAX_ES_1)		+= himax_852xES_1.o himax_platform.o
 obj-$(CONFIG_TOUCHSCREEN_HIMAX)			+= himax_852xD.o
 obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
+obj-$(CONFIG_STATE_NOTIFIER)		+= state_notifier.o
