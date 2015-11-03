@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1385,12 +1385,12 @@ int32_t msm_actuator_piezo_set_default_focus(
 static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 	int16_t next_lens_position, uint32_t hw_params, uint16_t delay)
 {
-	struct msm_actuator_reg_params_t *write_arr = a_ctrl->reg_tbl;
+	struct msm_actuator_reg_params_t *write_arr = NULL;
 	uint32_t hw_dword = hw_params;
 	uint16_t i2c_byte1 = 0, i2c_byte2 = 0;
 	uint16_t value = 0;
-	uint32_t size = a_ctrl->reg_tbl_size, i = 0;
-	struct msm_camera_i2c_reg_array *i2c_tbl = a_ctrl->i2c_reg_tbl;
+	uint32_t size = 0, i = 0;
+	struct msm_camera_i2c_reg_array *i2c_tbl = NULL;
 
 #if 1
     struct msm_camera_i2c_seq_reg_setting *i2c_seq_setting = &a_ctrl->i2c_seq_reg_setting;
@@ -1434,6 +1434,16 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 		return;
 	}
 	CDBG("Enter\n");
+
+	if (a_ctrl == NULL) {
+		pr_err("failed. actuator ctrl is NULL");
+		return;
+	}
+
+	size = a_ctrl->reg_tbl_size;
+	write_arr = a_ctrl->reg_tbl;
+	i2c_tbl = a_ctrl->i2c_reg_tbl;
+
 	for (i = 0; i < size; i++) {
 		if ((a_ctrl->total_steps + 1) < (a_ctrl->i2c_tbl_index)) {
 			break;
@@ -1936,12 +1946,23 @@ static int32_t msm_actuator_set_position(
 		return -EFAULT;
 	}
 
+	if (!a_ctrl || !a_ctrl->func_tbl ||
+		!a_ctrl->func_tbl->actuator_parse_i2c_params) {
+		pr_err("failed. NULL actuator pointers.");
+		return -EFAULT;
+	}
+
+	if (a_ctrl->actuator_state != ACTUATOR_POWER_UP) {
+		pr_err("failed. Invalid actuator state.");
+		return -EFAULT;
+	}
+
 	a_ctrl->i2c_tbl_index = 0;
 	for (index = 0; index < set_pos->number_of_steps; index++) {
 		next_lens_position = set_pos->pos[index];
 		delay = set_pos->delay[index];
 		a_ctrl->func_tbl->actuator_parse_i2c_params(a_ctrl,
-		next_lens_position, hw_params, delay);
+			next_lens_position, hw_params, delay);
 
 		reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 		reg_setting.size = a_ctrl->i2c_tbl_index;
