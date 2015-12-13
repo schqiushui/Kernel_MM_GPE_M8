@@ -16,8 +16,8 @@
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
-#ifdef CONFIG_STATE_NOTIFIER
-#include <linux/state_notifier.h>
+#ifdef CONFIG_POWERSUSPEND
+#include <linux/powersuspend.h>
 #else
 #include <linux/fb.h>
 #endif
@@ -95,7 +95,11 @@ static void msm_limit_resume(struct work_struct *work)
 		update_cpu_max_freq(cpu);
 }
 
+#ifdef CONFIG_POWERSUSPEND
+static void __msm_limit_suspend(struct power_suspend *handler)
+#else
 static void __msm_limit_suspend(void)
+#endif
 {
 	if (!limit.limiter_enabled || limit.suspended)
 		return;
@@ -105,7 +109,11 @@ static void __msm_limit_suspend(void)
 			msecs_to_jiffies(limit.suspend_defer_time * 1000));
 }
 
+#ifdef CONFIG_POWERSUSPEND
+static void __msm_limit_resume(struct power_suspend *handler)
+#else
 static void __msm_limit_resume(void)
+#endif
 {
 	if (!limit.limiter_enabled)
 		return;
@@ -115,23 +123,11 @@ static void __msm_limit_resume(void)
 	queue_work_on(0, limiter_wq, &limit.resume_work);
 }
 
-#ifdef CONFIG_STATE_NOTIFIER
-static int state_notifier_callback(struct notifier_block *this,
-				unsigned long event, void *data)
-{
-	switch (event) {
-		case STATE_NOTIFIER_ACTIVE:
-			__msm_limit_resume();
-			break;
-		case STATE_NOTIFIER_SUSPEND:
-			__msm_limit_suspend();
-			break;
-		default:
-			break;
-	}
-
-	return NOTIFY_OK;
-}
+#ifdef CONFIG_POWERSUSPEND
+static struct power_suspend msm_limit_power_suspend_driver = {
+	.suspend = __msm_limit_suspend,
+	.resume = __msm_limit_resume,
+};
 #else
 static int prev_fb = FB_BLANK_UNBLANK;
 
@@ -177,13 +173,8 @@ static int msm_cpufreq_limit_start(void)
 		goto err_out;
 	}
 
-#ifdef CONFIG_STATE_NOTIFIER
-	limit.notif.notifier_call = state_notifier_callback;
-	if (state_register_client(&limit.notif)) {
-		pr_err("%s: Failed to register State notifier callback\n",
-			MSM_LIMIT);
-		goto err_dev;
-	}
+#ifdef CONFIG_POWERSUSPEND
+	register_power_suspend(&msm_limit_power_suspend_driver);
 #else
 	limit.notif.notifier_call = fb_notifier_callback;
 	if (fb_register_client(&limit.notif)) {
@@ -203,8 +194,10 @@ static int msm_cpufreq_limit_start(void)
 	queue_work_on(0, limiter_wq, &limit.resume_work);
 
 	return ret;
+#ifndef CONFIG_POWERSUSPEND
 err_dev:
 	destroy_workqueue(limiter_wq);
+#endif
 err_out:
 	limit.limiter_enabled = 0;
 	return ret;
@@ -223,12 +216,12 @@ static void msm_cpufreq_limit_stop(void)
 	for_each_possible_cpu(cpu)	
 		mutex_destroy(&limit.msm_limiter_mutex[cpu]);
 
-#ifdef CONFIG_STATE_NOTIFIER
-	state_unregister_client(&limit.notif);
+#ifdef CONFIG_POWERSUSPEND
+	unregister_power_suspend(&msm_limit_power_suspend_driver);
 #else
 	fb_unregister_client(&limit.notif);
-#endif
 	limit.notif.notifier_call = NULL;
+#endif
 	destroy_workqueue(limiter_wq);
 }
 
