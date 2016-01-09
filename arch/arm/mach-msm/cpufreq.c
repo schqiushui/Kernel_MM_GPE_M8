@@ -123,7 +123,6 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 #ifdef CONFIG_HTC_DEBUG_FOOTPRINT
 			set_acpuclk_footprint(policy->cpu, ACPU_BEFORE_UPDATE_L2_BW);
 #endif
-			freq_index[policy->cpu] = index;
 		}
 #ifdef CONFIG_HTC_DEBUG_FOOTPRINT
 		set_acpuclk_footprint(policy->cpu, ACPU_LEAVE);
@@ -498,8 +497,8 @@ static int cpufreq_parse_dt(struct device *dev)
 
 	*krait_freq_table = *freq_table;
 
-	for (i = 0, j = 0; i < nf; i++, j += 3)
-		krait_freq_table[i].frequency = data[j];
+	for (i = 0; i < nf; i++)
+		krait_freq_table[i].frequency = data[i];
 	krait_freq_table[i].frequency = CPUFREQ_TABLE_END;
 #endif
 
