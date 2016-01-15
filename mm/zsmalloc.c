@@ -195,7 +195,7 @@ struct mapping_area {
 	enum zs_mapmode vm_mm; 
 };
 
-
+/* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
 static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
 
 static int is_first_page(struct page *page)
