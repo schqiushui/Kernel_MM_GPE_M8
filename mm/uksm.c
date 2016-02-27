@@ -504,6 +504,9 @@ static unsigned long uksm_pages_sharing;
 /* The number of nodes in the unstable tree */
 static unsigned long uksm_pages_unshared;
 
+/* Milliseconds ksmd should sleep between batches */
+static unsigned int uksm_thread_sleep_millisecs = 1000;
+
 /*
  * Milliseconds ksmd should sleep between scans,
  * >= 100ms to be consistent with
@@ -5677,7 +5680,7 @@ static int __init uksm_init(void)
 	struct task_struct *uksm_thread;
 	int err;
 
-	uksm_sleep_jiffies = msecs_to_jiffies(100);
+	uksm_sleep_jiffies = msecs_to_jiffies(uksm_thread_sleep_millisecs);
 
 	slot_tree_init();
 	init_scan_ladder();
