@@ -52,7 +52,6 @@ static const unsigned char lzop_magic[] = {
 #define HEADER_SIZE_MIN       (9 + 7     + 4 + 8     + 1       + 4)
 #define HEADER_SIZE_MAX       (9 + 7 + 1 + 8 + 8 + 4 + 1 + 255 + 4)
 
-
 STATIC inline long INIT parse_header(u8 *input, long *skip, long in_len)
 {
 	int l;
