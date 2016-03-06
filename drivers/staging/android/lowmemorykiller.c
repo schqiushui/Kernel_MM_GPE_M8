@@ -543,6 +543,9 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 				(long)(PAGE_SIZE / 1024),
 			     sc->gfp_mask);
 
+		if (!current_is_kswapd() && current->reclaim_state)
+			current->reclaim_state->trigger_lmk++;
+
 		if (lowmem_debug_level >= 2 && selected_oom_score_adj == 0) {
 			show_mem(SHOW_MEM_FILTER_NODES);
 			dump_tasks(NULL, NULL);
