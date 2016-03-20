@@ -3904,7 +3904,7 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-	u64 val;
+	u64 val = 0;
 	int type, name;
 
 	type = MEMFILE_TYPE(cft->private);
@@ -4392,7 +4392,7 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
 	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-	struct mem_cgroup_thresholds *thresholds;
+	struct mem_cgroup_thresholds *thresholds = NULL;
 	struct mem_cgroup_threshold_ary *new;
 	int type = MEMFILE_TYPE(cft->private);
 	u64 threshold, usage;
@@ -4408,8 +4408,10 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
 		thresholds = &memcg->thresholds;
 	else if (type == _MEMSWAP)
 		thresholds = &memcg->memsw_thresholds;
-	else
+	else {
 		BUG();
+		goto unlock;
+    }
 
 	usage = mem_cgroup_usage(memcg, type == _MEMSWAP);
 
@@ -4474,7 +4476,7 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 	struct cftype *cft, struct eventfd_ctx *eventfd)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-	struct mem_cgroup_thresholds *thresholds;
+	struct mem_cgroup_thresholds *thresholds = NULL;
 	struct mem_cgroup_threshold_ary *new;
 	int type = MEMFILE_TYPE(cft->private);
 	u64 usage;
@@ -4485,8 +4487,10 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 		thresholds = &memcg->thresholds;
 	else if (type == _MEMSWAP)
 		thresholds = &memcg->memsw_thresholds;
-	else
+	else {
 		BUG();
+		goto unlock;
+    }
 
 	if (!thresholds->primary)
 		goto unlock;
@@ -5459,7 +5463,7 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
 	int ret = 0;
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
 
-	if (memcg->move_charge_at_immigrate) {
+	if (memcg->move_charge_at_immigrate && p!=NULL) {
 		struct mm_struct *mm;
 		struct mem_cgroup *from = mem_cgroup_from_task(p);
 
@@ -5645,13 +5649,15 @@ static void mem_cgroup_move_task(struct cgroup *cont,
 				 struct cgroup_taskset *tset)
 {
 	struct task_struct *p = cgroup_taskset_first(tset);
-	struct mm_struct *mm = get_task_mm(p);
+    if (p!=NULL) {
+    	struct mm_struct *mm = get_task_mm(p);
 
-	if (mm) {
-		if (mc.to)
-			mem_cgroup_move_charge(mm);
-		mmput(mm);
-	}
+    	if (mm) {
+    		if (mc.to)
+    			mem_cgroup_move_charge(mm);
+    		mmput(mm);
+    	}
+    }
 	if (mc.to)
 		mem_cgroup_clear_mc();
 }

@@ -24,12 +24,16 @@ static struct msm_sensor_power_setting ov13850_power_setting[] = {
 		.config_val = 1,
 		.delay = 1,
 	},
+	#ifdef VCM_PWD_NC
+		
+	#else
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VCM_PWD,
 		.config_val = GPIO_OUT_HIGH,//GPIO_OUT_LOW,
 		.delay = 1,
 	},
+	#endif
 	{
 		.seq_type = SENSOR_VREG_NCP6924,
 		.seq_val = NCP6924_VANA,
@@ -251,10 +255,10 @@ static int ov13850_read_fuseid(struct sensorb_cfg_data *cdata,
 	#define OV13850_LITEON_OTP_SIZE 0xF
 
 	const short addr[3][OV13850_LITEON_OTP_SIZE] = {
-        //0,    1,    2,    3,    4,    5,    6,    7,    8,    9,    a,    b,    c,    d,    e
-        {0x7220,0x7221,0x7222,0x7223,0x7224,0x7225,0x7226,0x7227,0x7228,0x7229,0x722A,0x722B,0x722C,0x722D,0x722E}, // layer 1
-        {0x722F,0x7230,0x7231,0x7232,0x7233,0x7234,0x7235,0x7236,0x7237,0x7238,0x7239,0x723A,0x723B,0x723C,0x723D}, // layer 2
-        {0x723E,0x723F,0x7240,0x7241,0x7242,0x7243,0x7244,0x7245,0x7246,0x7247,0x7248,0x7249,0x724A,0x724B,0x724C}, // layer 3
+	
+	{0x7220,0x7221,0x7222,0x7223,0x7224,0x7225,0x7226,0x7227,0x7228,0x7229,0x722A,0x722B,0x722C,0x722D,0x722E}, 
+	{0x722F,0x7230,0x7231,0x7232,0x7233,0x7234,0x7235,0x7236,0x7237,0x7238,0x7239,0x723A,0x723B,0x723C,0x723D}, 
+	{0x723E,0x723F,0x7240,0x7241,0x7242,0x7243,0x7244,0x7245,0x7246,0x7247,0x7248,0x7249,0x724A,0x724B,0x724C}, 
 	};
 	static uint8_t otp[OV13850_LITEON_OTP_SIZE];
 	static int first= true;
@@ -264,9 +268,9 @@ static int ov13850_read_fuseid(struct sensorb_cfg_data *cdata,
 	int32_t rc = 0;
 	const int32_t offset = 0x00;
 	static int32_t valid_layer=-1;
-	uint16_t addr_start=0x7000;
-	uint16_t addr_end=0x73ff;
-
+	uint16_t addr_start=0x7220;
+	uint16_t addr_end=0x73be;
+ 
 	pr_info("%s called\n", __func__);
 //HTC_START , move read OTP to sensor probe
 	if (first) {
@@ -275,11 +279,37 @@ static int ov13850_read_fuseid(struct sensorb_cfg_data *cdata,
 
 		if (rc < 0)
 			pr_info("%s: i2c_write recommend settings fail\n", __func__);
-
+ 
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x0103, 0x01, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_info("%s: i2c_write b 0x0103 fail\n", __func__);
+ 
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x0100, 0x00, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_info("%s: i2c_write b 0x0100 fail\n", __func__);
+ 
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x3611, 0x10, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_info("%s: i2c_write b 0x3611 fail\n", __func__);
+ 
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x3612, 0x07, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_info("%s: i2c_write b 0x3612 fail\n", __func__);
+ 
+		
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x3613, 0x33, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_info("%s: i2c_write b 0x3613 fail\n", __func__);
+ 
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x0100, 0x01, MSM_CAMERA_I2C_BYTE_DATA);
 		if (rc < 0)
 			pr_info("%s: i2c_write b 0x0100 fail\n", __func__);
-
+ 
+		msleep(10);
+ 
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x5002, 0x05, MSM_CAMERA_I2C_BYTE_DATA);
 		if (rc < 0)
 			pr_info("%s: i2c_write b 0x5002 fail\n", __func__);
@@ -318,8 +348,9 @@ static int ov13850_read_fuseid(struct sensorb_cfg_data *cdata,
 				break;
 		}
 		pr_info("%s: OTP valid layer = %d\n", __func__,  valid_layer);
-
-
+ 
+		ov13850_s_ctrl.driver_ic = otp[3];
+ 
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(s_ctrl->sensor_i2c_client, 0x0100, 0x00, MSM_CAMERA_I2C_BYTE_DATA);
 		if (rc < 0)
 			pr_info("%s: i2c_write b 0x0100 fail\n", __func__);

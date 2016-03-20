@@ -5113,7 +5113,10 @@ int pm8941_gauge_get_attr_text(char *buf, int size)
 {
 	int len = 0;
 	int soc, ibat_ma;
-
+	int CHG_fcc_reveal = 0;
+#ifdef CONFIG_MACH_M8
+	int id_raw_chg = 0;
+#endif
 	if (!the_chip) {
 		pr_debug("called before init\n");
 		return -EINVAL;
@@ -5122,6 +5125,17 @@ int pm8941_gauge_get_attr_text(char *buf, int size)
 	pm8941_bms_get_batt_soc(&soc);
 	pm8941_bms_get_batt_current(&ibat_ma);
 
+#ifdef CONFIG_MACH_M8
+	id_raw_chg = ((int)read_battery_id(the_chip))/1000 ;
+	if((201 <= id_raw_chg && id_raw_chg <= 330) || (451 <= id_raw_chg && id_raw_chg <= 650)){
+		CHG_fcc_reveal = 2600000;
+	}
+	else{
+		CHG_fcc_reveal = pm8941_bms_get_fcc();
+	}
+#else
+	CHG_fcc_reveal = pm8941_bms_get_fcc();
+#endif
 	len += scnprintf(buf + len, size - len,
 			"SOC(%%): %d;\n"
 			"EOC(bool): %d;\n"
@@ -5146,7 +5160,7 @@ int pm8941_gauge_get_attr_text(char *buf, int size)
 			the_chip->bat_is_warm,
 			the_chip->bat_is_cool,
 			get_prop_batt_present(the_chip),
-			pm8941_bms_get_fcc()
+			CHG_fcc_reveal
 			/*usb_target_ma*/
 			);
 

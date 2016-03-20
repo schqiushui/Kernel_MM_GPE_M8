@@ -1969,8 +1969,9 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 		return;
 	}
 
-	if ((htc_batt_info.rep.charging_source == 0)
-			&& (stored_level_flag == false)) {
+	if (((htc_batt_info.rep.charging_source == 0)
+			&& (stored_level_flag == false)) ||
+			htc_batt_info.rep.overload ) {
 		store_level = prev_level - prev_raw_level;
 		BATT_LOG("%s: Cable plug out, to store difference between"
 			" UI & SOC. store_level:%d, prev_level:%d, prev_raw_level:%d"
@@ -1979,7 +1980,7 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 	} else if (htc_batt_info.rep.charging_source > 0)
 		stored_level_flag = false;
 
-	if (is_battery_discharging(prev_batt_info_rep)) {
+	if (is_battery_discharging(prev_batt_info_rep) || htc_batt_info.rep.overload) {
 		if (time_accumulated_level_change < DISCHG_UPDATE_PERIOD_MS
 				&& !first) {
 			

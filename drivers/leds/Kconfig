@@ -298,6 +298,12 @@ config LEDS_PCA9633
 	  This option enables support for LEDs connected to the PCA9633
 	  LED driver chip accessed via the I2C bus.
 
+config HTC_FLASHLIGHT_COMMON
+        tristate "Common flashlight API for camera"
+	depends on FLASHLIGHT_TPS61310_FRONT || FLASHLIGHT_LM3643 || FLASHLIGHT_TPS61310 || FLASHLIGHT_NCP6951
+        help
+          Say Y here to enable the common API for front & main flashlight utilization
+
 config LEDS_QPNP
 	tristate "Support for QPNP LEDs"
 	depends on SPMI && OF_SPMI

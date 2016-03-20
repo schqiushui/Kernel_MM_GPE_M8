@@ -595,17 +595,14 @@ static void bma250_irq_work_func(struct work_struct *work)
 
 static irqreturn_t bma250_irq_handler(int irq, void *handle)
 {
-
-
     struct bma250_data *data = handle;
-
-    disable_irq_nosync(data->irq);
 
     if (data == NULL)
 	return IRQ_HANDLED;
     if (this_client == NULL)
 	return IRQ_HANDLED;
 
+    disable_irq_nosync(data->irq);
 
     schedule_work(&data->irq_work);
 

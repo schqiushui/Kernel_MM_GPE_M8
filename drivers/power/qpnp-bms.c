@@ -2679,7 +2679,10 @@ static int calculate_state_of_charge(struct qpnp_bms_chip *chip,
 	struct soc_params params;
 	int soc = 0, previous_soc, shutdown_soc, new_calculated_soc;
 	int remaining_usable_charge_uah;
-
+	int bms_reveal_FCC = 0;
+#ifdef CONFIG_MACH_M8
+	int id_raw_bms = 0;
+#endif
 	calculate_soc_params(chip, raw, &params, batt_temp);
 	if (!is_battery_present(chip)) {
 		pr_debug("battery gone, reporting 100\n");
@@ -2769,6 +2772,20 @@ done_calculating:
 	} else {
 		report_state_of_charge(chip);
 	}
+
+#ifdef CONFIG_MACH_M8
+	id_raw_bms = ((int)read_battery_id(chip))/1000 ;
+	pr_info(" id_raw_bms = %d\n ",id_raw_bms);
+	if((201 <= id_raw_bms  && id_raw_bms <= 330) || (451 <= id_raw_bms && id_raw_bms <= 650)){
+		bms_reveal_FCC = 2600000;
+	}
+	else{ 
+		bms_reveal_FCC = bms_dbg.fcc_uah;
+	}
+#else
+	bms_reveal_FCC = bms_dbg.fcc_uah;
+#endif
+
 	pr_debug("FCC=%d,UC=%d,RC=%d,CC_uAh/ori=%d/%d,RUC=%d,SOC=%d,raw_soc=%d,"
 		       "start_pc=%d,end_pc=%d,OCV_uV/ori=%d/%d,OCV_raw=%x,"
 		       "rbatt=%d,rbatt_sf=%d,batt_temp=%d,soc_rbatt=%d,"
@@ -2778,7 +2795,7 @@ done_calculating:
 		       "shdw_cc_raw=%lld,ocv_at_100=%x,"
 		       "cc_backup=%d,ocv_backup=%d,consistent_flag=%d,is_ocv_update_start=%d,"
 		       "no_hw_ocv_ms=%ld\n",
-			bms_dbg.fcc_uah, bms_dbg.uuc_uah, bms_dbg.rc_uah, bms_dbg.cc_uah,bms_dbg.ori_cc_uah,
+			bms_reveal_FCC, bms_dbg.uuc_uah, bms_dbg.rc_uah, bms_dbg.cc_uah,bms_dbg.ori_cc_uah,
 			bms_dbg.ruc_uah, soc, bms_dbg.raw_soc,
 			chip->start_soc, chip->end_soc,
 			raw->last_good_ocv_uv, bms_dbg.last_ocv_raw_uv, raw->last_good_ocv_raw,
@@ -3882,7 +3899,7 @@ int emmc_misc_write(int val, int offset)
 	filp->f_pos = offset;
 	nread = kernel_write(filp, (char *)&w_val, sizeof(int), filp->f_pos);
 	pr_debug("%X (%d)\n", w_val, nread);
-
+	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
 
 	return 1;
@@ -4198,7 +4215,9 @@ int pm8941_bms_get_attr_text(char *buf, int size)
 	int batt_temp, rc, soc_rbatt, shdw_cc_uah;
 	int remaining_usable_charge_uah;
 	struct qpnp_vadc_result result;
-
+#ifdef CONFIG_MACH_M8
+	int bms_id_raw = 0;
+#endif
 	if (!the_chip) {
 		pr_debug("driver not initialized\n");
 		return 0;
@@ -4295,8 +4314,21 @@ int pm8941_bms_get_attr_text(char *buf, int size)
 			"pc_unusable(%%): %d;\n", bms_dbg.pc_unusable);
 	len += scnprintf(buf + len, size - len,
 			"rc_pc(%%): %d;\n", bms_dbg.rc_pc);
+#ifdef CONFIG_MACH_M8
+	bms_id_raw = ((int)read_battery_id(the_chip))/1000 ;
+	pr_info(" id_raw = %d\n ",bms_id_raw);
+	if((201 <= bms_id_raw && bms_id_raw <= 330) || (451 <= bms_id_raw && bms_id_raw <= 650)){
+		len += scnprintf(buf + len, size - len,
+				"fcc(uAh): %d;\n", 2600000);
+	}
+	else{
+		len += scnprintf(buf + len, size - len,
+				"fcc(uAh): %d;\n", params.fcc_uah);
+	}
+#else
 	len += scnprintf(buf + len, size - len,
 			"fcc(uAh): %d;\n", params.fcc_uah);
+#endif
 	len += scnprintf(buf + len, size - len,
 			"unusable_charge(uAh): %d;\n", params.uuc_uah);
 	len += scnprintf(buf + len, size - len,

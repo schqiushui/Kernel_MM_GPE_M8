@@ -64,6 +64,7 @@
 #define HTC_ALS     		1
 
 #define COMMON_DEBUG 		0
+#define INT_BY_PINCTRL		0
 #define ALS_DEBUG   		0
 #define PS_DEBUG    		0
 #define SHOW_DBG    		0
@@ -150,7 +151,6 @@ static int call_count = 0;
 #define PS_CALIBRATED		0X5053
 static int lightsensor_cali;
 static int psensor_cali;
-int current_lightsensor_kadc;
 static int delay_ls_adc = 0;
 static int debug_flag = 0;
 
@@ -295,8 +295,10 @@ struct epl_sensor_priv
 	u16 als_value_num;
 	u32 als_level[ALS_LEVEL-1];
 	u32 als_value[ALS_LEVEL];
+#if INT_BY_PINCTRL
 	struct pinctrl 	*pinctrl;
 	struct pinctrl_state *gpio_state_init;
+#endif
 };
 
 static struct platform_device *sensor_dev;
@@ -323,8 +325,9 @@ static const char ElanALsensorName[] = "lightsensor-level";
 void epl_sensor_update_mode(struct i2c_client *client);
 int epl_sensor_read_als_status(struct i2c_client *client);
 static int epl_sensor_setup_interrupt(struct epl_sensor_priv *epld);
+#if INT_BY_PINCTRL
 static int epl88051_pinctrl_init(struct epl_sensor_priv *epld);
-
+#endif
 static void epl_sensor_eint_work(struct work_struct *work);
 static DECLARE_WORK(epl_sensor_irq_work, epl_sensor_eint_work);
 static void epl_sensor_resume_work(struct work_struct *work);
@@ -2034,7 +2037,7 @@ static int epl_sensor_setup_interrupt(struct epl_sensor_priv *epld)
 	if (epld->intr_pin < 0) {
 		goto initial_fail;
     	}
-
+#if INT_BY_PINCTRL
 	if (gpio_is_valid(epld->intr_pin)) {
 		err = gpio_request(epld->intr_pin, "epl_irq_gpio");
 		if (err) {
@@ -2054,6 +2057,7 @@ static int epl_sensor_setup_interrupt(struct epl_sensor_priv *epld)
 		        goto initial_fail;
 		}
 	}
+#endif
 
 	err = request_irq(epld->irq,epl_sensor_eint_func, IRQF_TRIGGER_LOW,
         			              client->dev.driver->name, epld);
@@ -3951,6 +3955,7 @@ static struct attribute *epl_sensor_attr_list[] =
     &dev_attr_ps_dyn_max_ir.attr,
 #endif
     &dev_attr_als_thd_add.attr,
+    NULL,
 };
 
 static struct attribute_group epl_sensor_attr_group =
@@ -4330,7 +4335,7 @@ __ATTR(enable, S_IRWXUGO,
 
 static struct attribute *light_sysfs_attrs[] = {
 	&dev_attr_light_enable.attr,
-	NULL
+	NULL,
 };
 
 static struct attribute_group light_attribute_group = {
@@ -4421,7 +4426,7 @@ __ATTR(enable, S_IRWXUGO,
 
 static struct attribute *proximity_sysfs_attrs[] = {
 	&dev_attr_psensor_enable.attr,
-	NULL
+	NULL,
 };
 
 static struct attribute_group proximity_attribute_group = {
@@ -4457,7 +4462,6 @@ static int epl_sensor_setup_psensor(struct epl_sensor_priv *epld)
 	}
 
 	err = sysfs_create_group(&epld->ps_input_dev->dev.kobj, &proximity_attribute_group);
-
 	if (err) {
 		pr_err("%s: PS could not create sysfs group\n", __func__);
 		goto err_free_ps_input_device;
@@ -4470,6 +4474,7 @@ err_free_ps_input_device:
 	input_free_device(epld->ps_input_dev);
 	return err;
 }
+#if INT_BY_PINCTRL
 static int epl88051_pinctrl_init(struct epl_sensor_priv *epld)
 {
         int retval;
@@ -4502,6 +4507,7 @@ static int epl88051_pinctrl_init(struct epl_sensor_priv *epld)
 
         return 0;
 }
+#endif
 #ifdef CONFIG_SUSPEND
 static int epl_sensor_suspend(struct i2c_client *client, pm_message_t mesg)
 {
@@ -5036,7 +5042,6 @@ static int epl_sensor_probe(struct i2c_client *client,const struct i2c_device_id
 		printk ("sensor_dev_init: error\n");
 		goto err_fail;
 	}
-
 
 	err = sysfs_create_group(&sensor_dev->dev.kobj, &epl_sensor_attr_group);
 	if (err !=0) {

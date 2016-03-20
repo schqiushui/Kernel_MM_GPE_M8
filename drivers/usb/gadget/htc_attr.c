@@ -149,6 +149,8 @@ static int intrsharing;
 #define PID_MTPUMS_STOCKUI	0x0f26
 #define PID_STOCKUI	0x060d
 #define PID_UL 0x061A
+#define PID_MTP		0x0c93
+#define PID_MTPADB		0x0f87
 
 #define PDATA_NOT_DEFINED(field) \
 	printk(KERN_INFO "[USB] %s: %s isnt defined\n",	__func__, field);
@@ -463,13 +465,16 @@ int android_switch_function(unsigned func)
 
 
 	if (get_radio_flag() & BIT(17)) {
-		if ((func & ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB)))) {
+		if ((func & ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB))) == 3) {
 			if (!(func & (1 << USB_FUNCTION_MTP)))
 				swap_ums_adb = 1;
 		}
 	}
 
-	if ((get_radio_flag() & BIT(17)) && (board_mfg_mode() == 0)) {
+	if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB) | (1 << USB_FUNCTION_DIAG)))
+		swap_ums_adb = 1;
+
+	if ((get_radio_flag() & BIT(17))) {
 		if (func == ((1 << USB_FUNCTION_MTP) | (1 << USB_FUNCTION_ADB))) { 
 			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM) | (1 << USB_FUNCTION_RMNET));
 			pr_info("%s: add diag, modem, rment: %d\n", __func__, func);
@@ -482,6 +487,12 @@ int android_switch_function(unsigned func)
 		} else if (func == (1 << USB_FUNCTION_UMS)) { 
 			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM) | (1 << USB_FUNCTION_RMNET));
 			pr_info("%s: add diag, modem, rment: %d\n", __func__, func);
+		} else if (func == ((1 << USB_FUNCTION_RNDIS) | (1 << USB_FUNCTION_ADB))) { 
+			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM));
+			pr_info("%s: add diag, modem: %d\n", __func__, func);
+		} else if (func == (1 << USB_FUNCTION_RNDIS)) { 
+			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM));
+			pr_info("%s: add diag, modem: %d\n", __func__, func);
 		} else
 			pr_info("%s: need not to enable diag, modem, rment\n", __func__);
 	}
@@ -663,6 +674,12 @@ int android_switch_function(unsigned func)
 	} else if (rom_stockui && (product_id == PID_UL)) {
 		product_id = PID_STOCKUI;
 		pr_info("%s: stockUI ROM for default function\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTP)) {
+		product_id = PID_MTPUMS_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP only\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTPADB)) {
+		product_id = PID_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP +ADB\n", __func__);
 	}
 	pr_info("%s: rom_stockui=%d\n", __func__, rom_stockui);
 
@@ -1333,6 +1350,12 @@ static void setup_vendor_info(struct android_dev *dev) {
 	} else if (rom_stockui && (product_id == PID_UL)) {
 		product_id = PID_STOCKUI;
 		pr_info("%s: stockUI ROM for default function\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTP)) {
+		product_id = PID_MTPUMS_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP only\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTPADB)) {
+		product_id = PID_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP +ADB\n", __func__);
 	}
 
 	pr_info("%s: rom_stockui=%d\n", __func__, rom_stockui);

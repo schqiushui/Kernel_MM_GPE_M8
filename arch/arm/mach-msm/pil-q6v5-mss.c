@@ -49,6 +49,7 @@
 extern void msm_bam_dmux_dumplog(void);
 #endif
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+extern void msm_smd_dumplog(void);
 extern void msm_smsm_dumplog(void);
 #endif
 
@@ -125,6 +126,7 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 #endif
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+	msm_smd_dumplog();
 	msm_smsm_dumplog();
 #endif
 	pr_err("Fatal error on the modem.\n");

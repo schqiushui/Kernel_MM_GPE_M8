@@ -454,7 +454,7 @@ multicore_free_irq(int irq)
 	int cpu;
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (irq >= 0) {
+	if (desc && irq >= 0) {
 		for_each_cpu(cpu, desc->percpu_enabled) {
 			if (!armpmu_cpu_up(cpu))
 				smp_call_function_single(cpu,
@@ -959,10 +959,11 @@ static int perf_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
 	case CPU_PM_ENTER:
 		if (cpu_pmu && cpu_pmu->save_pm_registers)
 			cpu_pmu->save_pm_registers((void *)smp_processor_id());
-		if (cpu_has_active_perf((int)v)) {
+		if (cpu_has_active_perf((int)v) && cpu_pmu) {
 			armpmu_update_counters();
 			pmu = &cpu_pmu->pmu;
-			pmu->pmu_disable(pmu);
+			if (pmu)
+				pmu->pmu_disable(pmu);
 		}
 		break;
 
@@ -971,7 +972,7 @@ static int perf_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
 		if (cpu_pmu && cpu_pmu->restore_pm_registers)
 			cpu_pmu->restore_pm_registers(
 				(void *)smp_processor_id());
-		if (cpu_has_active_perf((int)v) && cpu_pmu->reset) {
+		if (cpu_has_active_perf((int)v) && cpu_pmu && cpu_pmu->reset) {
 			/*
 			 * Flip this bit so armpmu_enable knows it needs
 			 * to re-enable active counters.
@@ -979,7 +980,8 @@ static int perf_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
 			__get_cpu_var(from_idle) = 1;
 			cpu_pmu->reset(NULL);
 			pmu = &cpu_pmu->pmu;
-			pmu->pmu_enable(pmu);
+			if (pmu)
+				pmu->pmu_enable(pmu);
 		}
 		break;
 	}
@@ -1064,13 +1066,11 @@ init_hw_perf_events(void)
 			cpu_pmu = armv7_scorpion_pmu_init();
 			break;
 		case 0x02D0:    /* 8x60 */
-//			fabricmon_pmu_init();
 			cpu_pmu = armv7_scorpionmp_pmu_init();
 			break;
 		case 0x0490:    /* 8960 sim */
 		case 0x04D0:    /* 8960 */
 		case 0x06F0:    /* 8064 */
-//			fabricmon_pmu_init();
 			cpu_pmu = armv7_krait_pmu_init();
 			break;
 		}

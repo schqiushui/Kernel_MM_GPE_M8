@@ -251,7 +251,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 		return -EBUSY;
 
 	if (!cpu_online(cpu))
-		return -EINVAL;
+		return 0;
 
 	cpu_hotplug_begin();
 
@@ -328,7 +328,10 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
 	struct task_struct *idle;
 
-	if (cpu_online(cpu) || !cpu_present(cpu))
+	if (cpu_online(cpu))
+		return 0;
+
+	if (!cpu_present(cpu))
 		return -EINVAL;
 
 	cpu_hotplug_begin();

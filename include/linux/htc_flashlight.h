@@ -1,6 +1,7 @@
 /*
- * arch/arm/mach-msm/include/mach/msm_flashlight.h - The flashlight header
- * Copyright (C) 2009  HTC Corporation
+ * include/linux/htc_flashlight.h - The flashlight header
+ *
+ * Copyright (C) 2014-2015 HTC Corporation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef __HTC_FLASHLIGHT_H
@@ -91,6 +88,13 @@ struct TPS61310_flashlight_platform_data {
 	uint32_t power_save; //disable modem while FLASH 1.5A flash
 	uint32_t power_save_2;
 };
+#endif
+
+#if defined(CONFIG_HTC_FLASHLIGHT_COMMON)
+extern int (*htc_flash_main)(int ,int);
+extern int (*htc_torch_main)(int ,int);
+extern int (*htc_flash_front)(int ,int);
+extern int (*htc_torch_front)(int ,int);
 #endif
 
 #ifdef CONFIG_FLASHLIGHT_TPS61310

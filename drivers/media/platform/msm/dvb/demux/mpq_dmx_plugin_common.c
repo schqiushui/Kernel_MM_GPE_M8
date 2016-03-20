@@ -2853,7 +2853,8 @@ static int mpq_dmx_process_video_packet_framing(
 			 */
 			if ((MPQ_STREAMBUFFER_BUFFER_MODE_LINEAR ==
 				 feed_data->video_buffer->mode) &&
-				framing_res.info[i].used_prefix_size) {
+				framing_res.info[i].used_prefix_size &&
+				framing_res.info[i].used_prefix_size <= DVB_DMX_MAX_PATTERN_LEN) {
 				ret = mpq_streambuffer_data_write(stream_buffer,
 					feed_data->prev_pattern +
 					 DVB_DMX_MAX_PATTERN_LEN -
@@ -5008,10 +5009,8 @@ static int mpq_sdmx_write(struct mpq_demux *mpq_demux,
 	const char *buf,
 	size_t count)
 {
-	struct ion_handle *ion_handle =
-		mpq_demux->demux.dmx.dvr_input.priv_handle;
-	struct dvb_ringbuffer *rbuf = (struct dvb_ringbuffer *)
-		mpq_demux->demux.dmx.dvr_input.ringbuff;
+	struct ion_handle *ion_handle = NULL;
+	struct dvb_ringbuffer *rbuf = NULL;
 	struct sdmx_buff_descr buf_desc;
 	u32 read_offset;
 	int ret;
@@ -5020,6 +5019,10 @@ static int mpq_sdmx_write(struct mpq_demux *mpq_demux,
 		MPQ_DVB_ERR_PRINT("%s: invalid parameters\n", __func__);
 		return -EINVAL;
 	}
+
+	ion_handle = mpq_demux->demux.dmx.dvr_input.priv_handle;
+	rbuf = (struct dvb_ringbuffer *)
+		mpq_demux->demux.dmx.dvr_input.ringbuff;
 
 	ret = mpq_sdmx_dvr_buffer_desc(mpq_demux, &buf_desc);
 	if (ret) {

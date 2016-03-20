@@ -469,5 +469,10 @@ config REGULATOR_NCP6924_OFFMODE_CHARGE
 	help
 	  This driver supports voltage regulator of OFF Semiconductor NCP6924 chips.
 
-endif
+config REGULATOR_TWL80125
+        tristate "TWL80125 PMIC"
+        depends on I2C
+        help
+          This driver supports voltage regulator of Texas Instruments TWL80125 chips.
 
+endif
