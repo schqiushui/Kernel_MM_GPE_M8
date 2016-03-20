@@ -50,6 +50,9 @@ enum {
 
 static int mac_mtp_mode;
 static int os_type;
+static int first_dt_w_length = 0;
+static int first_string_w_length = 0;
+
 
 int board_get_usb_ats(void);
 #include "usbstring.c"
@@ -445,6 +448,8 @@ static void android_work(struct work_struct *data)
 			os_type = OS_NOT_YET;
 			mtp_update_mode(0);
 			fsg_update_mode(0);
+			first_dt_w_length = 0;
+			first_string_w_length = 0;
 		}
 	}
 

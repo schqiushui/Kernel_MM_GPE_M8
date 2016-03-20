@@ -34,7 +34,6 @@
 
 #define ADB_BULK_BUFFER_SIZE           4096
 
-/* number of tx requests to allocate */
 #define TX_REQ_MAX 4
 
 static const char adb_shortname[] = "android_adb";
@@ -62,8 +61,6 @@ struct adb_dev {
 	int rx_done;
 	int read_err;
 	int write_err;
-/*	bool notify_close;
-	bool close_notified;*/
 };
 
 static struct usb_interface_descriptor adb_interface_desc = {
@@ -88,9 +85,9 @@ static struct usb_ss_ep_comp_descriptor adb_superspeed_in_comp_desc = {
 	.bLength =		sizeof adb_superspeed_in_comp_desc,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
-	/* the following 2 values can be tweaked if necessary */
-	/* .bMaxBurst =		0, */
-	/* .bmAttributes =	0, */
+	
+	
+	
 };
 
 static struct usb_endpoint_descriptor adb_superspeed_out_desc = {
@@ -105,9 +102,9 @@ static struct usb_ss_ep_comp_descriptor adb_superspeed_out_comp_desc = {
 	.bLength =		sizeof adb_superspeed_out_comp_desc,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
-	/* the following 2 values can be tweaked if necessary */
-	/* .bMaxBurst =		0, */
-	/* .bmAttributes =	0, */
+	
+	
+	
 };
 
 static struct usb_endpoint_descriptor adb_highspeed_in_desc = {
@@ -162,11 +159,6 @@ static struct usb_descriptor_header *ss_adb_descs[] = {
 	(struct usb_descriptor_header *) &adb_superspeed_out_comp_desc,
 	NULL,
 };
-/*
-static void adb_ready_callback(void);
-static void adb_closed_callback(void);
-*/
-/* temporary variable used between adb_open() and adb_gadget_bind() */
 static struct adb_dev *_adb_dev;
 
 static struct timer_list adb_read_timer;
@@ -186,7 +178,7 @@ static struct usb_request *adb_request_new(struct usb_ep *ep, int buffer_size)
 	if (!req)
 		return NULL;
 
-	/* now allocate buffers for the requests */
+	
 	req->buf = kmalloc(buffer_size, GFP_KERNEL);
 	if (!req->buf) {
 		usb_ep_free_request(ep, req);
@@ -219,7 +211,6 @@ static inline void adb_unlock(atomic_t *excl)
 	atomic_dec(excl);
 }
 
-/* add a request to the tail of a list */
 void adb_req_put(struct adb_dev *dev, struct list_head *head,
 		struct usb_request *req)
 {
@@ -230,7 +221,6 @@ void adb_req_put(struct adb_dev *dev, struct list_head *head,
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
-/* remove a request from the head of a list */
 struct usb_request *adb_req_get(struct adb_dev *dev, struct list_head *head)
 {
 	unsigned long flags;
@@ -293,7 +283,7 @@ static int adb_create_bulk_endpoints(struct adb_dev *dev,
 		return -ENODEV;
 	}
 	DBG(cdev, "usb_ep_autoconfig for ep_in got %s\n", ep->name);
-	ep->driver_data = dev;		/* claim the endpoint */
+	ep->driver_data = dev;		
 	dev->ep_in = ep;
 
 	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
@@ -302,10 +292,10 @@ static int adb_create_bulk_endpoints(struct adb_dev *dev,
 		return -ENODEV;
 	}
 	DBG(cdev, "usb_ep_autoconfig for adb ep_out got %s\n", ep->name);
-	ep->driver_data = dev;		/* claim the endpoint */
+	ep->driver_data = dev;		
 	dev->ep_out = ep;
 
-	/* now allocate requests for our endpoints */
+	
 	req = adb_request_new(dev->ep_out, ADB_BULK_BUFFER_SIZE);
 	if (!req)
 		goto fail;
@@ -355,7 +345,7 @@ static ssize_t adb_read(struct file *fp, char __user *buf,
 		return -EBUSY;
 	}
 
-	/* we will block until we're online */
+	
 	while (!(atomic_read(&dev->online) || atomic_read(&dev->error))) {
 		pr_debug("adb_read: waiting for online state\n");
 		ret = wait_event_interruptible(dev->read_wq,
@@ -374,7 +364,7 @@ static ssize_t adb_read(struct file *fp, char __user *buf,
 	}
 
 requeue_req:
-	/* queue a request */
+	
 	req = dev->rx_req;
 
 	if (count % 512 == 0)
@@ -393,7 +383,7 @@ requeue_req:
 		pr_debug("rx %p queue\n", req);
 	}
 
-	/* wait for a request to complete */
+	
 	ret = wait_event_interruptible(dev->read_wq, dev->rx_done ||
 				atomic_read(&dev->error));
 
@@ -419,7 +409,7 @@ requeue_req:
 		goto done;
 	}
 	if (!atomic_read(&dev->error)) {
-		/* If we got a 0-len packet, throw it back and try again. */
+		
 		if (req->actual == 0)
 			goto requeue_req;
 
@@ -480,7 +470,7 @@ static ssize_t adb_write(struct file *fp, const char __user *buf,
 			break;
 		}
 
-		/* get an idle tx request to use */
+		
 		req = 0;
 		ret = wait_event_interruptible(dev->write_wq,
 			((req = adb_req_get(dev, &dev->tx_idle)) ||
@@ -519,7 +509,7 @@ static ssize_t adb_write(struct file *fp, const char __user *buf,
 			buf += xfer;
 			count -= xfer;
 
-			/* zero this so we don't try to free it on error exit */
+			
 			req = 0;
 		}
 	}
@@ -537,11 +527,6 @@ static ssize_t adb_write(struct file *fp, const char __user *buf,
 
 static int adb_open(struct inode *ip, struct file *fp)
 {
-/*
-	static DEFINE_RATELIMIT_STATE(rl, 10*HZ, 1);
-	if (__ratelimit(&rl))
-		pr_info("adb_open\n");
-*/
 	printk(KERN_INFO "[USB] adb_open: %s(parent:%s): tgid=%d\n",
 			current->comm, current->parent->comm, current->tgid);
 
@@ -553,51 +538,22 @@ static int adb_open(struct inode *ip, struct file *fp)
 
 	fp->private_data = _adb_dev;
 
-	/* clear the error latch */
+	
 	atomic_set(&_adb_dev->error, 0);
 	_adb_dev->read_err = 0;
 	_adb_dev->write_err = 0;
-/*
-	if (_adb_dev->close_notified) {
-		_adb_dev->close_notified = false;
-		adb_ready_callback();
-	}
-
-	_adb_dev->notify_close = true;
-*/
 	return 0;
 }
 
 static int adb_release(struct inode *ip, struct file *fp)
 {
-/*
-	static DEFINE_RATELIMIT_STATE(rl, 10*HZ, 1);
-
-	if (__ratelimit(&rl))
-		pr_info("adb_release\n");
-*/
 	printk(KERN_INFO "[USB] adb_release: %s(parent:%s): tgid=%d read_err %d write_err %d\n",
 			current->comm, current->parent->comm, current->tgid,_adb_dev->read_err,_adb_dev->write_err);
 
-	/*
-	 * ADB daemon closes the device file after I/O error.  The
-	 * I/O error happen when Rx requests are flushed during
-	 * cable disconnect or bus reset in configured state.  Disabling
-	 * USB configuration and pull-up during these scenarios are
-	 * undesired.  We want to force bus reset only for certain
-	 * commands like "adb root" and "adb usb".
-	 */
-/*
-	if (_adb_dev->notify_close) {
-		adb_closed_callback();
-		_adb_dev->close_notified = true;
-	}
-*/
 	adb_unlock(&_adb_dev->open_excl);
 	return 0;
 }
 
-/* file operations for ADB device /dev/android_adb */
 static const struct file_operations adb_fops = {
 	.owner = THIS_MODULE,
 	.read = adb_read,
@@ -676,26 +632,26 @@ adb_function_bind(struct usb_configuration *c, struct usb_function *f)
 	dev->cdev = cdev;
 	DBG(cdev, "adb_function_bind dev: %p\n", dev);
 
-	/* allocate interface ID(s) */
+	
 	id = usb_interface_id(c, f);
 	if (id < 0)
 		return id;
 	adb_interface_desc.bInterfaceNumber = id;
 
-	/* allocate endpoints */
+	
 	ret = adb_create_bulk_endpoints(dev, &adb_fullspeed_in_desc,
 			&adb_fullspeed_out_desc);
 	if (ret)
 		return ret;
 
-	/* support high speed hardware */
+	
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
 		adb_highspeed_in_desc.bEndpointAddress =
 			adb_fullspeed_in_desc.bEndpointAddress;
 		adb_highspeed_out_desc.bEndpointAddress =
 			adb_fullspeed_out_desc.bEndpointAddress;
 	}
-	/* support super speed hardware */
+	
 	if (gadget_is_superspeed(c->cdev->gadget)) {
 		adb_superspeed_in_desc.bEndpointAddress =
 			adb_fullspeed_in_desc.bEndpointAddress;
@@ -766,7 +722,7 @@ static int adb_function_set_alt(struct usb_function *f,
 	}
 	atomic_set(&dev->online, 1);
 
-	/* readers may be blocked waiting for us to go online */
+	
 	wake_up(&dev->read_wq);
 	return 0;
 }
@@ -777,18 +733,12 @@ static void adb_function_disable(struct usb_function *f)
 	struct usb_composite_dev	*cdev = dev->cdev;
 
 	DBG(cdev, "adb_function_disable cdev %p\n", cdev);
-	/*
-	 * Bus reset happened or cable disconnected.  No
-	 * need to disable the configuration now.  We will
-	 * set noify_close to true when device file is re-opened.
-	 */
-/*	dev->notify_close = false;*/
 	atomic_set(&dev->online, 0);
 	atomic_set(&dev->error, 1);
 	usb_ep_disable(dev->ep_in);
 	usb_ep_disable(dev->ep_out);
 
-	/* readers may be blocked waiting for us to go online */
+	
 	wake_up(&dev->read_wq);
 
 	VDBG(cdev, "%s disabled\n", dev->function.name);
@@ -832,8 +782,7 @@ static int adb_setup(void)
 	atomic_set(&dev->read_excl, 0);
 	atomic_set(&dev->write_excl, 0);
 
-	/* config is disabled by default if adb is present. */
-/*	dev->close_notified = true;*/
+	
 
 	INIT_LIST_HEAD(&dev->tx_idle);
 
@@ -843,7 +792,7 @@ static int adb_setup(void)
 	if (ret)
 		goto err;
 
-	/* mfgkernel mode need this device node */
+	
 	if ((board_mfg_mode() != 0) || (board_get_usb_ats() == 1)) {
 		ret = misc_register(&adb_enable_device);
 		if (ret)
@@ -863,7 +812,8 @@ err:
 static void adb_cleanup(void)
 {
 	misc_deregister(&adb_device);
-	misc_deregister(&adb_enable_device);
+	if ((board_mfg_mode() != 0) || (board_get_usb_ats() == 1))
+		misc_deregister(&adb_enable_device);
 
 	kfree(_adb_dev);
 	_adb_dev = NULL;

@@ -12,7 +12,7 @@
 	htc,capacity = <2600>;
 	htc,batt_id = <1>;
 	htc,id_raw_min = <331>;
-	htc,id_raw_max = <550>;
+	htc,id_raw_max = <450>;
 	htc,type = <1>;
 	htc,model_name = "B0P6B100";
 

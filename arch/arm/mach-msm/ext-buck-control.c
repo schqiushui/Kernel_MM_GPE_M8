@@ -18,10 +18,10 @@
 #include <linux/of_platform.h>
 #include <mach/rpm-smd.h>
 
-#define RPM_REQUEST_TYPE_GPIO  0x6f697067 /* gpio */
-#define RPM_GPIO_NUMB_KEY      0x626d756e /* numb */
-#define RPM_GPIO_STAT_KEY      0x74617473 /* stat */
-#define RPM_GPIO_SETT_KEY      0x74746573 /* sett */
+#define RPM_REQUEST_TYPE_GPIO  0x6f697067 
+#define RPM_GPIO_NUMB_KEY      0x626d756e 
+#define RPM_GPIO_STAT_KEY      0x74617473 
+#define RPM_GPIO_SETT_KEY      0x74746573 
 #define RPM_GPIO_RESOURCE_ID   3
 #define GPIO_ON                1
 #define GPIO_OFF               0

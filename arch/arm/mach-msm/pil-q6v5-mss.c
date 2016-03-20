@@ -49,6 +49,7 @@
 extern void msm_bam_dmux_dumplog(void);
 #endif
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+extern void msm_smd_dumplog(void);
 extern void msm_smsm_dumplog(void);
 #endif
 
@@ -116,7 +117,7 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 {
 	struct modem_data *drv = subsys_to_drv(dev_id);
 
-	/* Ignore if we're the one that set the force stop GPIO */
+	
 	if (drv->crash_shutdown)
 		return IRQ_HANDLED;
 
@@ -125,6 +126,7 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 #endif
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+	msm_smd_dumplog();
 	msm_smsm_dumplog();
 #endif
 	pr_err("Fatal error on the modem.\n");
@@ -176,11 +178,6 @@ static int modem_powerup(const struct subsys_desc *subsys)
 
 	if (subsys->is_not_loadable)
 		return 0;
-	/*
-	 * At this time, the modem is shutdown. Therefore this function cannot
-	 * run concurrently with either the watchdog bite error handler or the
-	 * SMSM callback, making it safe to unset the flag below.
-	 */
 	INIT_COMPLETION(drv->stop_ack);
 	drv->ignore_errors = false;
 	ret = pil_boot(&drv->q6->desc);
@@ -304,19 +301,6 @@ static int __devinit pil_subsys_init(struct modem_data *drv,
 	}
 
 #if defined(CONFIG_HTC_FEATURES_SSR)
-	/*modem restart condition and ramdump rule would follow below
-	1. Modem restart default enable
-	- flag [6] 0,   [8] 0 -> enable restart, no ramdump
-	- flag [6] 800, [8] 0 -> reboot
-	- flag [6] 800, [8] 8 -> disable restart, go DL mode
-	- flag [6] 0,   [8] 8 -> enable restart, online ramdump
-	2. Modem restart default disable
-	- flag [6] 0,   [8] 0 -> reboot
-	- flag [6] 800, [8] 0 -> enable restart, no ramdump
-	- flag [6] 800, [8] 8 -> enable restartm online ramdump
-	- flag [6] 0,   [8] 8 -> disable restart, go DL mode
-	3. Always disable Modem SSR if boot_mode != normal
-	*/
 #if defined(CONFIG_HTC_FEATURES_SSR_MODEM_ENABLE)
 	if (get_kernel_flag() & (KERNEL_FLAG_ENABLE_SSR_MODEM)) {
 			subsys_set_restart_level(drv->subsys, RESET_SOC);

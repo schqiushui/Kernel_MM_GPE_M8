@@ -64,6 +64,7 @@ void smsm_dbg_log_event(const char * event, ...);
 #define DBG_MSG_LEN   100UL
 
 #define DBG_MAX_MSG   256UL
+#define DBG_SMD_MAX_MSG   (DBG_MAX_MSG * 2)
 
 #define TIME_BUF_LEN  20
 
@@ -85,6 +86,30 @@ static struct {
 	unsigned idx;   
 	rwlock_t lck;   
 } dbg_smsm = {
+	.idx = 0,
+	.lck = __RW_LOCK_UNLOCKED(lck)
+};
+
+void smd_dbg_log_event(const char * event, ...);
+
+static int smd_htc_debug_enable = 1;
+static int smd_htc_debug_dump = 1;
+static int smd_htc_debug_dump_lines = DBG_SMD_MAX_MSG;
+static int smd_htc_debug_print = 0;
+module_param_named(smd_htc_debug_enable, smd_htc_debug_enable,
+		   int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(smd_htc_debug_dump, smd_htc_debug_dump,
+		   int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(smd_htc_debug_dump_lines, smd_htc_debug_dump_lines,
+		   int, S_IRUGO | S_IWUSR | S_IWGRP);
+module_param_named(smd_htc_debug_print, smd_htc_debug_print,
+		   int, S_IRUGO | S_IWUSR | S_IWGRP);
+
+static struct {
+	char     (buf[DBG_SMD_MAX_MSG])[DBG_MSG_LEN];   
+	unsigned idx;   
+	rwlock_t lck;   
+} dbg_smd = {
 	.idx = 0,
 	.lck = __RW_LOCK_UNLOCKED(lck)
 };
@@ -192,10 +217,19 @@ void *smsm_log_ctx;
 	} while (0)
 
 #if defined(CONFIG_MSM_SMD_DEBUG)
+#ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+#define SMD_DBG(x...) do {				\
+		if (msm_smd_debug_mask & MSM_SMD_DEBUG) \
+			IPC_LOG_SMD(KERN_DEBUG, x);	\
+		if (smd_htc_debug_enable) \
+			smd_dbg_log_event(x); \
+	} while (0)
+#else
 #define SMD_DBG(x...) do {				\
 		if (msm_smd_debug_mask & MSM_SMD_DEBUG) \
 			IPC_LOG_SMD(KERN_DEBUG, x);	\
 	} while (0)
+#endif
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
 #define SMSM_DBG(x...) do {					\
@@ -211,10 +245,20 @@ void *smsm_log_ctx;
 	} while (0)
 #endif
 
-#define SMD_INFO(x...) do {			 	\
+#ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+#define SMD_INFO(x...) do {				\
+		if (msm_smd_debug_mask & MSM_SMD_INFO)	\
+			IPC_LOG_SMD(KERN_INFO, x);	\
+		if (smd_htc_debug_enable) \
+			smd_dbg_log_event(x); \
+	} while (0)
+#else
+#define SMD_INFO(x...) do {				\
 		if (msm_smd_debug_mask & MSM_SMD_INFO)	\
 			IPC_LOG_SMD(KERN_INFO, x);	\
 	} while (0)
+#endif
+
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
 #define SMSM_INFO(x...) do {				\
@@ -230,10 +274,20 @@ void *smsm_log_ctx;
 	} while (0)
 #endif
 
+#ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+#define SMD_POWER_INFO(x...) do {				\
+		if (msm_smd_debug_mask & MSM_SMD_POWER_INFO)	\
+			IPC_LOG_SMD(KERN_INFO, x);		\
+		if (smd_htc_debug_enable) \
+			smd_dbg_log_event(x); \
+	} while (0)
+#else
 #define SMD_POWER_INFO(x...) do {				\
 		if (msm_smd_debug_mask & MSM_SMD_POWER_INFO)	\
 			IPC_LOG_SMD(KERN_INFO, x);		\
 	} while (0)
+#endif
+
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
 #define SMSM_POWER_INFO(x...) do {				\
@@ -250,7 +304,16 @@ void *smsm_log_ctx;
 #endif
 
 #else
+
+#ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+#define SMD_DBG(x...) do {					\
+		if (smd_htc_debug_enable) \
+			smd_dbg_log_event(x); \
+	} while (0)
+#else
 #define SMD_DBG(x...) do { } while (0)
+#endif
+
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
 #define SMSM_DBG(x...) do {					\
@@ -261,7 +324,14 @@ void *smsm_log_ctx;
 #define SMSM_DBG(x...) do { } while (0)
 #endif
 
+#ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+#define SMD_INFO(x...) do {				\
+		if (smd_htc_debug_enable) \
+			smsm_dbg_log_event(x); \
+	} while (0)
+#else
 #define SMD_INFO(x...) do { } while (0)
+#endif
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
 #define SMSM_INFO(x...) do {				\
@@ -272,7 +342,15 @@ void *smsm_log_ctx;
 #define SMSM_INFO(x...) do { } while (0)
 #endif
 
+#ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+#define SMD_POWER_INFO(x...) do {				\
+		if (smd_htc_debug_enable) \
+			smsm_dbg_log_event(x); \
+	} while (0)
+#else
 #define SMD_POWER_INFO(x...) do { } while (0)
+#endif
+
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
 #define SMSM_POWER_INFO(x...) do {				\
@@ -3118,12 +3196,12 @@ late_initcall(modem_restart_late_init);
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
 
 static char smsm_klog[PAGE_SIZE];
-static void smsm_dbg_inc(unsigned *idx)
+static void smd_dbg_inc(unsigned *idx)
 {
 	*idx = (*idx + 1) & (DBG_MAX_MSG-1);
 }
 
-static char *smsm_get_timestamp(char *tbuf)
+static char *smd_get_timestamp(char *tbuf)
 {
 	unsigned long long t;
 	unsigned long nanosec_rem;
@@ -3147,7 +3225,7 @@ void smsm_events_print(void)
 
 	i = dbg_smsm.idx;
 
-	for (smsm_dbg_inc(&i); i != dbg_smsm.idx; smsm_dbg_inc(&i)) {
+	for (smd_dbg_inc(&i); i != dbg_smsm.idx; smd_dbg_inc(&i)) {
 		if (!strnlen(dbg_smsm.buf[i], DBG_MSG_LEN))
 			continue;
 		pr_info("%s", dbg_smsm.buf[i]);
@@ -3181,14 +3259,15 @@ void msm_smsm_dumplog(void)
 		return;
 	}
 
-#ifndef CONFIG_MSM_SMD_DEBUG
-	{
-		pr_info("%s: CONFIG_MSM_SMD_DEBUG not define\n", __func__);
+	if ( !(msm_smd_debug_mask & MSM_SMSM_DEBUG
+		&& msm_smd_debug_mask & MSM_SMSM_INFO
+		&& msm_smd_debug_mask & MSM_SMSM_POWER_INFO) ) {
+		pr_info("%s: msm_smd_debug_mask=[%d]\n", __func__, msm_smd_debug_mask);
 		smsm_events_print();
 		return;
 	}
-#endif
-	pr_info("### Show SMSM Log Start ###\n");
+
+	pr_info("### Show SMSM Log Start ###[IPC log]\n");
 
 	do {
 
@@ -3200,7 +3279,7 @@ void msm_smsm_dumplog(void)
 
 	} while ( ret > 0 );
 
-	pr_info("### Show SMSM Log End ###\n");
+	pr_info("### Show SMSM Log End ###[IPC log]\n");
 
 }
 EXPORT_SYMBOL(msm_smsm_dumplog);
@@ -3225,9 +3304,9 @@ void smsm_dbg_log_event(const char * event, ...)
 	write_lock_irqsave(&dbg_smsm.lck, flags);
 
 	scnprintf(dbg_smsm.buf[dbg_smsm.idx], DBG_MSG_LEN,
-		"%s %s", smsm_get_timestamp(tbuf), dbg_buff);
+		"%s %s", smd_get_timestamp(tbuf), dbg_buff);
 
-	smsm_dbg_inc(&dbg_smsm.idx);
+	smd_dbg_inc(&dbg_smsm.idx);
 
 	if ( smsm_htc_debug_print )
 		pr_info("%s", dbg_buff);
@@ -3246,7 +3325,7 @@ static int smsm_events_show(struct seq_file *s, void *unused)
 	read_lock_irqsave(&dbg_smsm.lck, flags);
 
 	i = dbg_smsm.idx;
-	for (smsm_dbg_inc(&i); i != dbg_smsm.idx; smsm_dbg_inc(&i)) {
+	for (smd_dbg_inc(&i); i != dbg_smsm.idx; smd_dbg_inc(&i)) {
 		if (!strnlen(dbg_smsm.buf[i], DBG_MSG_LEN))
 			continue;
 		seq_printf(s, "%s", dbg_smsm.buf[i]);
@@ -3264,6 +3343,143 @@ static int smsm_events_open(struct inode *inode, struct file *f)
 
 const struct file_operations smsm_dbg_fops = {
 	.open = smsm_events_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static char smd_klog[PAGE_SIZE];
+
+void smd_events_print(void)
+{
+	unsigned long	flags;
+	unsigned	i;
+	unsigned lines = 0;
+
+	pr_info("### Show SMD Log Start ###\n");
+
+	read_lock_irqsave(&dbg_smd.lck, flags);
+
+	i = dbg_smd.idx;
+
+	for (smd_dbg_inc(&i); i != dbg_smd.idx; smd_dbg_inc(&i)) {
+		if (!strnlen(dbg_smd.buf[i], DBG_MSG_LEN))
+			continue;
+		pr_info("%s", dbg_smd.buf[i]);
+		lines++;
+		if ( lines > smd_htc_debug_dump_lines )
+			break;
+	}
+
+	read_unlock_irqrestore(&dbg_smd.lck, flags);
+
+	pr_info("### Show SMD Log End ###\n");
+}
+
+void msm_smd_dumplog(void)
+{
+	int ret = 0;
+
+	if ( !smd_htc_debug_enable ) {
+		pr_info("%s: smd_htc_debug_enable=[%d]\n", __func__, smd_htc_debug_enable);
+		return;
+	}
+
+	if ( !smd_htc_debug_dump ) {
+		pr_info("%s: smd_htc_debug_dump=[%d]\n", __func__, smd_htc_debug_dump);
+		return;
+	}
+
+	if ( !smd_log_ctx ) {
+		pr_info("%s: smd_log_ctx = NULL\n", __func__);
+		smd_events_print();
+		return;
+	}
+
+	if ( !(msm_smd_debug_mask & MSM_SMD_DEBUG
+		&& msm_smd_debug_mask & MSM_SMD_INFO
+		&& msm_smd_debug_mask & MSM_SMD_POWER_INFO) ) {
+		pr_info("%s: msm_smd_debug_mask=[%d]\n", __func__, msm_smd_debug_mask);
+		smd_events_print();
+		return;
+	}
+
+	pr_info("### Show SMD Log Start ###[IPC log]\n");
+
+	do {
+
+		memset(smd_klog, 0x0, PAGE_SIZE);
+		ret = ipc_log_extract( smd_log_ctx, smd_klog, PAGE_SIZE);
+		if ( ret >= 0 ) {
+			pr_info("%s\n", smd_klog);
+		}
+
+	} while ( ret > 0 );
+
+	pr_info("### Show SMD Log End ###[IPC log]\n");
+
+}
+EXPORT_SYMBOL(msm_smd_dumplog);
+
+void smd_dbg_log_event(const char * event, ...)
+{
+	unsigned long flags;
+	char tbuf[TIME_BUF_LEN];
+	char dbg_buff[DBG_MSG_LEN];
+	va_list arg_list;
+	int data_size;
+
+	if ( !smd_htc_debug_enable ) {
+		return;
+	}
+
+	va_start(arg_list, event);
+	data_size = vsnprintf(dbg_buff,
+			      DBG_MSG_LEN, event, arg_list);
+	va_end(arg_list);
+
+	write_lock_irqsave(&dbg_smd.lck, flags);
+
+	scnprintf(dbg_smd.buf[dbg_smd.idx], DBG_MSG_LEN,
+		"%s %s", smd_get_timestamp(tbuf), dbg_buff);
+
+	smd_dbg_inc(&dbg_smd.idx);
+
+	if ( smd_htc_debug_print )
+		pr_info("%s", dbg_buff);
+	write_unlock_irqrestore(&dbg_smd.lck, flags);
+
+	return;
+
+}
+EXPORT_SYMBOL(smd_dbg_log_event);
+
+static int smd_events_show(struct seq_file *s, void *unused)
+{
+	unsigned long	flags;
+	unsigned	i;
+
+	read_lock_irqsave(&dbg_smd.lck, flags);
+
+	i = dbg_smd.idx;
+	for (smd_dbg_inc(&i); i != dbg_smd.idx; smd_dbg_inc(&i)) {
+		if (!strnlen(dbg_smd.buf[i], DBG_MSG_LEN))
+			continue;
+		seq_printf(s, "%s", dbg_smd.buf[i]);
+	}
+
+	read_unlock_irqrestore(&dbg_smd.lck, flags);
+
+	return 0;
+}
+
+static int smd_events_open(struct inode *inode, struct file *f)
+{
+	return single_open(f, smd_events_show, inode->i_private);
+}
+
+const struct file_operations smd_dbg_fops = {
+	.open = smd_events_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,

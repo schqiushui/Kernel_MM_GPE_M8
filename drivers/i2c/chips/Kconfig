@@ -130,11 +130,17 @@ config INPUT_YAS_MAGNETOMETER
 	depends on I2C
 
 
-config SENSORS_NFC_PN544
-	tristate "PN544 NFC sensor support"
+config SENSORS_NFC_PN548
+	tristate "PN548 NFC sensor support"
 	depends on I2C=y
 	help
-	PN544 NFC Driver implemented.
+	PN548 NFC Driver implemented.
+
+config SENSORS_NFC_PN544
+        tristate "PN544 NFC sensor support"
+        depends on I2C=y
+        help
+        PN544 NFC Driver implemented.
 
 config SENSORS_NFC_IRQ_WORKAROUND
 	tristate "PN544 NFC sensor IRQ workaround"
