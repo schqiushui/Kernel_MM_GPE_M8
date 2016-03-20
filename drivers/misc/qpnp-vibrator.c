@@ -327,6 +327,7 @@ static int __devinit qpnp_vibrator_probe(struct spmi_device *spmi)
 	int rc;
 	u8 val;
 
+	printk(KERN_INFO "[VIB] Start probe +++++++");
 	vib = devm_kzalloc(&spmi->dev, sizeof(*vib), GFP_KERNEL);
 	if (!vib)
 		return -ENOMEM;
@@ -363,8 +364,8 @@ static int __devinit qpnp_vibrator_probe(struct spmi_device *spmi)
 	} else {
 		vib->enlarge_vib_diff_value = 0;
 	}
-	
-	
+	printk(KERN_INFO "[VIB] vib->enlarge-vib_on: %d\n", vib->enlarge_vib_on);
+	printk(KERN_INFO "[VIB] vib->enlarge_vib_diff_value: %d\n", vib->enlarge_vib_diff_value);
 
 	vib_resource = spmi_get_resource(spmi, 0, IORESOURCE_MEM, 0);
 	if (!vib_resource) {
@@ -424,7 +425,7 @@ static int __devinit qpnp_vibrator_probe(struct spmi_device *spmi)
 #endif
 
 	vib_dev = vib;
-
+	printk(KERN_INFO "[VIB] probe end-------");
 	return rc;
 }
 

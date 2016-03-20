@@ -1026,7 +1026,7 @@ void himax_touch_information(void)
 }
 static uint8_t himax_read_Sensor_ID(struct i2c_client *client)
 {
-	uint8_t val_high[1], val_low[1], ID0=0, ID1=0;
+	uint8_t val_high[1] = {0}, val_low[1] = {0}, ID0=0, ID1=0;
 	uint8_t sensor_id;
 	char data[3];
 	const int normalRetry = 10;
@@ -1682,7 +1682,6 @@ HimaxErr:
 void himax_HW_reset(uint8_t loadconfig,uint8_t int_off)
 {
 	struct himax_ts_data *ts = private_ts;
-	int ret = 0;
 	if (ts->rst_gpio) {
 		if(int_off)
 			{
@@ -1690,7 +1689,7 @@ void himax_HW_reset(uint8_t loadconfig,uint8_t int_off)
 					himax_int_enable(private_ts->client->irq,0);
 				else {
 					hrtimer_cancel(&ts->timer);
-					ret = cancel_work_sync(&ts->work);
+					cancel_work_sync(&ts->work);
 				}
 			}
 
@@ -1718,6 +1717,8 @@ void himax_HW_reset(uint8_t loadconfig,uint8_t int_off)
 static u8 himax_read_FW_ver(bool hw_reset)
 {
 	uint8_t cmd[3];
+
+	memset(cmd, 0x00, sizeof(cmd));
 
 	himax_int_enable(private_ts->client->irq,0);
 
@@ -3744,7 +3745,15 @@ static ssize_t himax_debug_dump(struct device *dev,struct device_attribute *attr
 
 		memset(fileName, 0, 128);
 		
-		snprintf(fileName, count-2, "%s", &buf[2]);
+		if (sizeof(fileName) > count-2)
+			snprintf(fileName, count-2, "%s", &buf[2]);
+		else
+		{
+			E("%s: file name is too long\n", __func__);
+			goto firmware_upgrade_done;
+			
+		}
+
 		I("%s: upgrade from file(%s) start!\n", __func__, fileName);
 		
 		filp = filp_open(fileName, O_RDONLY, 0);

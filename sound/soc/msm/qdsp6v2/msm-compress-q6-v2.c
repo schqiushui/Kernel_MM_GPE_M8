@@ -346,8 +346,8 @@ static void compr_event_handler(uint32_t opcode,
 		uint32_t token, uint32_t *payload, void *priv)
 {
 	struct msm_compr_audio *prtd = priv;
-	struct snd_compr_stream *cstream; 
-	struct audio_client *ac; 
+	struct snd_compr_stream *cstream;
+	struct audio_client *ac;
 	uint32_t chan_mode = 0;
 	uint32_t sample_rate = 0;
 	int bytes_available, stream_id;
@@ -355,7 +355,7 @@ static void compr_event_handler(uint32_t opcode,
 	unsigned long flags;
 
 	if (!prtd) {
-		pr_err("%s: cannot set from priv \n", __func__);
+		pr_err("%s: cannot set from priv, prtd is NULL \n", __func__);
 		return;
 	}
 
@@ -1781,10 +1781,10 @@ static int msm_compr_set_metadata(struct snd_compr_stream *cstream,
 		return -EINVAL;
 
 	prtd = cstream->runtime->private_data;
-	if (!prtd)
+	if (!prtd || !prtd->audio_client) {
+		pr_err("%s: prtd or audio client is NULL\n", __func__);
 		return -EINVAL;
-	if (!prtd->audio_client)
-		return -EINVAL;
+	}
 	ac = prtd->audio_client;
 	if (prtd->stream_end) {
 		pr_info("reset lasttimestamp at setmetadata\n");

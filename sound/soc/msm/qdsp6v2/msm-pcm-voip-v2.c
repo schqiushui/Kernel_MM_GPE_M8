@@ -318,7 +318,7 @@ static void voip_ssr_cb_fn(uint32_t opcode, void *private_data)
 	
 	struct voip_drv_info *prtd = private_data;
 
-	if (opcode == 0xFFFFFFFF) {
+	if ((opcode == 0xFFFFFFFF) || (opcode == RESET_EVENTS)) { 
 
 		prtd->voip_reset = true;
 		pr_debug("%s: Notify ASoC to send next playback/Capture\n",

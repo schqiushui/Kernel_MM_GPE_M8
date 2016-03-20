@@ -2618,6 +2618,7 @@ static int __devinit cm36686_probe(struct i2c_client *client,
 	ret = cm36686_read_chip_id(lpi);
 	if (ret < 0) {
 		pr_err("[PS_ERR][cm36686 error]%s: cm36686_read_chip_id error!\n", __func__);
+		ret = -ENXIO;
 		goto err_cm36686_read_chip_id;
 	}
 

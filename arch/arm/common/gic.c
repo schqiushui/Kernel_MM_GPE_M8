@@ -1053,7 +1053,7 @@ void gic_set_irq_secure(unsigned int irq)
 	struct gic_chip_data *gic_data = &gic_data[0];
 	struct irq_data *d = irq_get_irq_data(irq);
 
-	if (is_cpu_secure()) {
+	if (is_cpu_secure() && d!=NULL) {
 		raw_spin_lock(&irq_controller_lock);
 		gicd_isr_reg = readl_relaxed(gic_dist_base(d) +
 				GIC_DIST_ISR + gic_irq(d) / 32 * 4);

@@ -82,6 +82,7 @@ $(KERNEL_OUT)/piggy : $(TARGET_PREBUILT_INT_KERNEL)
 	$(hide) gunzip -c $(KERNEL_OUT)/arch/arm/boot/compressed/piggy.gzip > $(KERNEL_OUT)/piggy
 
 $(TARGET_PREBUILT_INT_KERNEL): $(KERNEL_OUT) $(KERNEL_CONFIG) $(KERNEL_HEADERS_INSTALL)
+
 ifeq ($(KERNEL_ENABLE_EXFAT), m)
 	cp vendor/tuxera/exfat/tuxera_update_htc.sh kernel/
 	cp vendor/tuxera/exfat/update_tuxera.sh kernel/
@@ -145,6 +146,10 @@ else
 endif
 endif
 endif
+
+	$(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=$(CROSS_COMPILE_PATH)arm-eabi-
+	$(MAKE) -C kernel O=../$(KERNEL_OUT) ARCH=arm CROSS_COMPILE=$(CROSS_COMPILE_PATH)arm-eabi- modules
+	$(MAKE) -C kernel O=../$(KERNEL_OUT) INSTALL_MOD_PATH=../../$(KERNEL_MODULES_INSTALL) INSTALL_MOD_STRIP=1 ARCH=arm CROSS_COMPILE=$(CROSS_COMPILE_PATH)arm-eabi- modules_install
 	$(mv-modules)
 	$(clean-module-folder)
 	$(append-dtb)
