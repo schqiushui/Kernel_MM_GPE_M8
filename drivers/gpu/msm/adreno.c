@@ -304,7 +304,7 @@ static void adreno_input_event(struct input_handle *handle, unsigned int type,
 	 * slumber, the event has to be EV_EBS and we had to have processed an
 	 * IB since the last time we called wake on touch.
 	 */
-	if ((type == EV_ABS) &&
+	if ((type == EV_ABS) && interesting &&
 		!(device->flags & KGSL_FLAG_WAKE_ON_TOUCH) &&
 		(device->state == KGSL_STATE_SLUMBER))
 		schedule_work(&adreno_dev->input_work);
