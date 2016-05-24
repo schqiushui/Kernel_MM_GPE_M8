@@ -1990,7 +1990,7 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 #endif
 
 		len = snprintf(outp, char_count,
-			       "sock=%p tag=0x%llx (uid=%u) pid=%u "
+			       "sock=%pK tag=0x%llx (uid=%u) pid=%u "
 			       "f_count=%lu\n",
 			       sock_tag_entry->sk,
 			       sock_tag_entry->tag, uid,
