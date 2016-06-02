@@ -73,14 +73,22 @@ static ssize_t dsi_cmd_write(
 	if (!ctrl_instance)
 		return count;
 
-	
+	/* end of string */
 	debug_buf[count] = 0;
 
-	
+	/* Format:
+	ex: echo 39 51 ff > dsi_cmd
+	read ex: echo 06 52 00 > dsi_cmd
+	     [type] space [addr] space [value]
+	     +--+--+-----+--+--+------+--+--+-
+	bit   0  1    2   3  4     5   6  7
+	ex:    39          51           ff
+	*/
+	/* Calc the count, min count = 9, format: type addr value */
 	cnt = (count) / 3 - 1;
 	debug_cmd.dchdr.dlen = cnt;
 
-	
+	/* Get the type */
 	sscanf(debug_buf, "%x", &type);
 
 	if (type == DTYPE_DCS_LWRITE)
@@ -94,7 +102,7 @@ static ssize_t dsi_cmd_write(
 
 	PR_DISP_INFO("%s: cnt=%d, type=0x%x\n", __func__, cnt, type);
 
-	
+	/* Get the cmd and value */
 	for (i = 0; i < cnt; i++) {
 		if (i >= DCS_MAX_CNT) {
 			PR_DISP_INFO("%s: DCS command count over DCS_MAX_CNT, Skip these commands.\n", __func__);
@@ -115,7 +123,7 @@ static ssize_t dsi_cmd_write(
 		cmdreq.flags = CMD_REQ_COMMIT | CMD_REQ_RX;
 		cmdreq.rlen = 4;
 		cmdreq.rbuf = dsi_rbuf;
-		cmdreq.cb = dsi_read_cb; 
+		cmdreq.cb = dsi_read_cb; /* call back */
 
 		mdss_dsi_cmdlist_put(ctrl_instance, &cmdreq);
 	} else {
@@ -209,8 +217,35 @@ err_out:
 	return count;
 }
 
+/*
+HTC native mipi command format :
 
-#define SLEEPMS_OFFSET(strlen) (strlen+1) 
+	"format string", < sleep ms >,  <cmd leng>, ['cmd bytes'...] ;
+
+	"format string" :
+		"DTYPE_DCS_WRITE"  : 0x05
+		"DTYPE_DCS_WRITE1" : 0x15
+		"DTYPE_DCS_LWRITE" : 0x39
+		"DTYPE_GEN_WRITE"  : 0x03
+		"DTYPE_GEN_WRITE1" : 0x13
+		"DTYPE_GEN_WRITE2" : 0x23
+		"DTYPE_GEN_LWRITE" : 0x29
+
+	Example :
+		htc-fmt,mdss-dsi-off-command =
+					"DTYPE_DCS_WRITE", <1>, <0x02>, [28 00],
+					"DTYPE_DCS_WRITE", <120>, <0x02>, [10 00];
+		htc-fmt,display-on-cmds = "DTYPE_DCS_WRITE", <0x0A>, <0x02>, [29 00];
+		htc-fmt,cabc-off-cmds = "DTYPE_DCS_LWRITE", <1>, <0x02>, [55 00];
+		htc-fmt,cabc-ui-cmds =
+			"DTYPE_DCS_LWRITE", <5>, <0x02>, [55 02],
+			"DTYPE_DCS_LWRITE", <1>, <0x02>, [5E 11],
+			"DTYPE_DCS_LWRITE", <1>, <0x0A>, [CA 2D 27 26 25 24 22 21 21 20],
+			"DTYPE_DCS_LWRITE", <1>, <0x23>, [CE 00 00 00 00 10 10 16 16 16 16 16 16 16 16 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00];
+
+*/
+
+#define SLEEPMS_OFFSET(strlen) (strlen+1) /* < sleep ms>, [cmd len ... */
 #define CMDLEN_OFFSET(strlen)  (SLEEPMS_OFFSET(strlen)+sizeof(const __be32))
 #define CMD_OFFSET(strlen)     (CMDLEN_OFFSET(strlen)+sizeof(const __be32))
 
@@ -254,7 +289,7 @@ int htc_mdss_dsi_parse_dcs_cmds(struct device_node *np,
 	if (!prop || !len || !(prop->length) || !(prop->value)) {
 		pr_err("%s: failed, key=%s  [%d : %d : %p]\n", __func__, cmd_key,
 			len, (prop ? prop->length : -1), (prop ? prop->value : 0) );
-		
+		//pr_err("%s: failed, key=%s\n", __func__, cmd_key);
 		return -ENOMEM;
 	}
 
@@ -271,7 +306,7 @@ int htc_mdss_dsi_parse_dcs_cmds(struct device_node *np,
 				break;
 			curcmdtype++;
 		};
-		if( !dsi_cmd_map[curcmdtype].cmdtype_strlen ) 
+		if( !dsi_cmd_map[curcmdtype].cmdtype_strlen ) /* no matching */
 			break;
 
 		i = be32_to_cpup((__be32 *)&data[CMDLEN_OFFSET(dsi_cmd_map[curcmdtype].cmdtype_strlen)]);
@@ -385,7 +420,7 @@ int mdss_mdp_parse_dt_dspp_pcc_setting(struct platform_device *pdev)
 			int i = 0;
 
 			dspp_pcc_mode[mode_index].dspp_pcc_config_cnt = 0;
-			
+			/* mode-name */
 			rc = of_property_read_string(pcc_node,
 				"htc,pcc-mode", &st);
 			if (rc) {
@@ -399,10 +434,10 @@ int mdss_mdp_parse_dt_dspp_pcc_setting(struct platform_device *pdev)
 				ARRAY_SIZE(dspp_pcc_mode[mode_index].mode_name),
 				"%s", st);
 
-			
+			/* pcc-enable */
 			of_property_read_u32(pcc_node, "htc,pcc-enable", &dspp_pcc_mode[mode_index].pcc_enable);
 
-			
+			/* pcc-configs */
 			pp_pcc_arr = of_get_property(pcc_node, "htc,pcc-configs", &pp_pcc_config_len);
 
 			if (!pp_pcc_arr) {
@@ -415,7 +450,7 @@ int mdss_mdp_parse_dt_dspp_pcc_setting(struct platform_device *pdev)
 
 			pp_pcc_config_len /= 2 * sizeof(u32);
 			if (pp_pcc_config_len) {
-				
+				/* Create dspp_pcc mode configs */
 				dspp_pcc_mode[mode_index].dspp_pcc_config = devm_kzalloc(&pdev->dev,
 					sizeof(*dspp_pcc_mode[mode_index].dspp_pcc_config) * pp_pcc_config_len, GFP_KERNEL);
 				pcc = dspp_pcc_mode[mode_index].dspp_pcc_config;
@@ -492,10 +527,10 @@ void htc_register_attrs(struct kobject *led_kobj, struct msm_fb_data_type *mfd)
 		if (rc)
 			pr_err("sysfs creation pp_pcc failed, rc=%d\n", rc);
 	}
-	
+	/* hue initial value */
 	htc_attr_status[HUE_INDEX].req_value = panel_info->mdss_pp_hue;
 
-	
+	/* pcc initial value was disable*/
 	htc_attr_status[PP_PCC_INDEX].req_value = 0;
 
 	return;
@@ -506,7 +541,7 @@ void htc_reset_status(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(htc_attr_status); i++) {
-		
+		/* For other cases, the configured value will be kept after suspend/resume */
 		if (i == CABC_INDEX)
 			htc_attr_status[i].cur_value = htc_attr_status[i].def_value;
 	}
@@ -619,7 +654,7 @@ void htc_dimming_on(struct msm_fb_data_type *mfd)
 
 void htc_dimming_off(void)
 {
-	
+	/* Delete dimming workqueue */
 	cancel_delayed_work_sync(&dimming_work);
 }
 
@@ -630,7 +665,7 @@ void htc_set_pp_pa(struct mdss_mdp_ctl *ctl)
 	u32 copyback = 0;
 	int ret;
 
-	
+	/* PP Picture Adjustment(PA) */
 	if (htc_attr_status[HUE_INDEX].req_value == htc_attr_status[HUE_INDEX].cur_value)
 		return;
 
@@ -661,7 +696,7 @@ void htc_set_pp_pcc(struct mdss_mdp_ctl *ctl)
 	uint32_t tempOps;
 	req_val = htc_attr_status[PP_PCC_INDEX].req_value;
 
-	
+	/* PP Panel Color Correction(PCC) */
 	if (req_val == htc_attr_status[PP_PCC_INDEX].cur_value)
 		return;
 
@@ -702,6 +737,13 @@ void htc_set_pp_pcc(struct mdss_mdp_ctl *ctl)
 	PR_DISP_INFO("%s pp_pcc mode = 0x%x, ret = %d\n", __func__, htc_attr_status[PP_PCC_INDEX].cur_value, ret);
 }
 
+/**
+ * Backlight 1.0.
+ * htc_backlight_transfer_bl_brightness() -  Transfer BL level and Brightness level.
+ * Ref htc,brt-bl-table to map BL level and Brightness level.
+ * brightness_to_bl = true, The val was brigthness and return bl level.
+ * brightness_to_bl = false, The val was bl and return brightness level.
+ */
 int htc_backlight_transfer_bl_brightness(int val, struct mdss_panel_info *panel_info, bool brightness_to_bl)
 {
 	unsigned int result;
@@ -711,7 +753,7 @@ int htc_backlight_transfer_bl_brightness(int val, struct mdss_panel_info *panel_
 	struct htc_backlight1_table *brt_bl_table = &panel_info->brt_bl_table;
 	int size = brt_bl_table->size;
 
-	
+	/* Not define brt table */
 	if(!size || !brt_bl_table->brt_data|| !brt_bl_table->bl_data)
 		return -ENOENT;
 
@@ -726,13 +768,13 @@ int htc_backlight_transfer_bl_brightness(int val, struct mdss_panel_info *panel_
 	if (val <= 0){
 		result = 0;
 	} else if (val < val_table[0]) {
-		
+		/* Min value */
 		result = ret_table[0];
 	} else if (val >= val_table[size - 1]) {
-		
+		/* Max value */
 		result = ret_table[size - 1];
 	} else {
-		
+		/* Interpolation method */
 		result = val;
 		for(index = 0; index < size - 1; index++){
 			if (val >= val_table[index] && val <= val_table[index + 1]) {
@@ -752,6 +794,13 @@ int htc_backlight_transfer_bl_brightness(int val, struct mdss_panel_info *panel_
 	return result;
 }
 
+/**
+ * Backlight 2.0.
+ * htc_backlight_bl_to_nits() - Transfer Backlight level to 0.1 nits level.
+ * Ref htc,nits-bl-table to map nits and brightness.
+ * Backlight_bl_to_nits() should be called
+ * when we get lcd-backlight-nits device attribute value.
+ */
 int htc_backlight_bl_to_nits(int val, struct mdss_panel_info *panel_info)
 {
 	int index = 0, remainder = 0, max_index = 0;
@@ -783,6 +832,13 @@ int htc_backlight_bl_to_nits(int val, struct mdss_panel_info *panel_info)
 	return nits;
 }
 
+/**
+ * Backlight 2.0
+ * htc_backlight_nits_to_bl() -  Transfer 0.1 nits level to Backlight level.
+ * Ref htc,nits-bl-table to map nits and brightness.
+ * Backlight_nits_to_bl() should be called
+ * when we set lcd-backlight-nits device attribute value.
+ */
 int htc_backlight_nits_to_bl(int val, struct mdss_panel_info *panel_info)
 {
 	int index = 0, remainder = 0, max_index = 0;
@@ -805,7 +861,7 @@ int htc_backlight_nits_to_bl(int val, struct mdss_panel_info *panel_info)
 	index = val / scale;
 	remainder = val % scale;
 
-	
+	/* Set to max bl table. */
 	if (index >= max_index) {
 		index = max_index;
 		remainder = 0;
@@ -815,16 +871,21 @@ int htc_backlight_nits_to_bl(int val, struct mdss_panel_info *panel_info)
 		code1 = nits_bl_table->data[index];
 		code2 = nits_bl_table->data[index + 1];
 
-		
+		/* Interpolation method */
 		code = (code2 - code1) * remainder / scale + code1;
 	} else {
-		
+		/* We can direct map to bl table. */
 		code = nits_bl_table->data[index];
 	}
 
+	/**
+	 * The static value should be protect by critical section.
+	 * Apply spinlock to implement thread safety when critical section was fast.
+	 * We are need to disable the IRQ to avoid the deadlock.
+	 */
 	spin_lock_irqsave(&lock, flags);
 
-	
+	/* logging policy: discard logs within 1 (scale) nits change and within 500 ms */
 	print_log = time_after(jiffies, timeout);
 	print_log |= !prev_val || ((prev_val / scale) != index);
 	print_log |= !val;
@@ -836,7 +897,7 @@ int htc_backlight_nits_to_bl(int val, struct mdss_panel_info *panel_info)
 		} else {
 			pr_info("%s: nits=%d, bl=%d", __func__, val, code);
 		}
-		
+		/* Set timeout to 500 ms */
 		timeout = jiffies + msecs_to_jiffies(500);
 		prev_val = val;
 	} else {

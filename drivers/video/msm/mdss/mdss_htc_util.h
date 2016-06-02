@@ -62,4 +62,4 @@ int htc_backlight_transfer_bl_brightness(int val, struct mdss_panel_info *panel_
 int htc_backlight_bl_to_nits(int val, struct mdss_panel_info *panel_info);
 int htc_backlight_nits_to_bl(int val, struct mdss_panel_info *panel_info);
 
-#endif 
+#endif /* MDSS_FB_H */
