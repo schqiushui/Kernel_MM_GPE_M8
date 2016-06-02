@@ -25,6 +25,7 @@
 #define BANK_A				0x01
 #define BANK_B				0x02
 
+/* LM3697 Register */
 #define LM3697_REVISION_REG				0x00
 #define LM3697_SW_RESET_REG				0x01
 #define LM3697_HVLED_CURR_SINK_OUT_CFG_REG		0x10
@@ -45,6 +46,22 @@
 #define LM3697_CTL_B_BRIGHTNESS_MSB_REG			0x23
 #define LM3697_CTL_B_BANK_EN_REG			0x24
 
+/**
+ * struct lm3697_data
+ * @led_dev: led class device
+ * @client: i2c client
+ * @adapter: i2c adapter
+ * @lock: mutex lock
+ * @work: work
+ * @addr: i2c address
+ * @brighness: previous brightness value
+ * @enable: enable/disable
+ * @bank_A: enable/disable
+ * @bank_B: enable/disable
+ * @pwm_cfg: pwm configuration
+ * @boost_en: Boost Control
+ * @ctl_bank_en: Control Bank Enables
+ */
 struct lm3697_data {
 	struct led_classdev led_dev;
 	struct i2c_client *client;
@@ -121,7 +138,7 @@ void lm3697_set_brightness(struct lm3697_data *drvdata, int brt_val)
 	brt_LSB = brt_val % 0x7;
 	brt_MSB = (brt_val >> 3) & 0xFF;
 
-	
+	/* set the brightness in brightness control register*/
 	if (drvdata->bank_B) {
 		platform_write_i2c_block(drvdata->adapter, drvdata->addr, LM3697_CTL_B_BRIGHTNESS_LSB_REG, 0x01, &brt_LSB);
 		platform_write_i2c_block(drvdata->adapter, drvdata->addr, LM3697_CTL_B_BRIGHTNESS_MSB_REG, 0x01, &brt_MSB);
@@ -202,7 +219,7 @@ static int lm3697_get_dt_data(struct device *dev, struct lm3697_data *drvdata)
 	drvdata->ctl_bank_en = (!rc ? tmp : 0);
 	pr_debug("%s : ctl_bank_en=0x%x\n",__func__, drvdata->ctl_bank_en);
 
-	
+	/* select bank */
 	if (drvdata->ctl_bank_en & 0x01)
 		drvdata->bank_A = true;
 	if (drvdata->ctl_bank_en & 0x02)
@@ -210,7 +227,7 @@ static int lm3697_get_dt_data(struct device *dev, struct lm3697_data *drvdata)
 
 	pr_debug("%s : bank_A=%d bank_B=%d\n",__func__, drvdata->bank_A, drvdata->bank_B);
 
-	
+	/* Suported brightness range */
 	rc = of_property_read_u32(of_node, "max-level", &tmp);
 	if (rc) {
 		pr_err("%s:%d, dt not specified\n",
