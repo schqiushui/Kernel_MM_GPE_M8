@@ -469,7 +469,7 @@ static void mdss_mdp_video_underrun_intr_done(void *arg)
 	ctl->underrun_cnt++;
 	trace_mdp_video_underrun_done(ctl->num, ctl->underrun_cnt);
 	if (time_after(jiffies, prev_jiffy + 5 * HZ) || !prev_jiffy) {
-		pr_info("display underrun detected for ctl=%d count=%d\n", ctl->num,
+		pr_debug("display underrun detected for ctl=%d count=%d\n", ctl->num,
 			ctl->underrun_cnt);
 		prev_jiffy = jiffies;
 	}
@@ -689,11 +689,15 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 			WARN(rc == 0, "timeout (%d) waiting for vsync\n", rc);
 		}
 
+		video_vsync_irq_disable(ctl);
+
 		rc = mdss_iommu_ctrl(1);
 		if (IS_ERR_VALUE(rc)) {
 			pr_err("IOMMU attach failed\n");
+			video_vsync_irq_enable(ctl, true);
 			return rc;
 		}
+		video_vsync_irq_enable(ctl, true);
 
 		mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 

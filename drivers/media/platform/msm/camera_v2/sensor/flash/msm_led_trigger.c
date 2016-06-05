@@ -84,7 +84,7 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 #ifdef CONFIG_HTC_FLASHLIGHT_COMMON
 	if(htc_torch_main)
 	{
-		htc_torch_main(50, 50);
+		htc_torch_main(125, 125);
 	}
 	else
 		pr_err("[CAM][FL] msm_led_trigger_config, flashlight control is NULL\n");
@@ -305,7 +305,7 @@ static uint16_t led_low_cap_limit_dual = 14;
 static ssize_t led_ril_status_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
        if(buf)
 	    length = sprintf(buf, "%d\n", led_ril_status_value);
 	return length;
@@ -327,7 +327,7 @@ static ssize_t led_ril_status_set(struct device *dev,
 static ssize_t led_wimax_status_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_wimax_status_value);
 	return length;
@@ -349,7 +349,7 @@ static ssize_t led_wimax_status_set(struct device *dev,
 static ssize_t led_hotspot_status_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_hotspot_status_value);
 	return length;
@@ -370,7 +370,7 @@ static ssize_t led_hotspot_status_set(struct device *dev,
 static ssize_t low_temp_limit_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_low_temp_limit);
 	return length;
@@ -379,7 +379,7 @@ static ssize_t low_temp_limit_get(struct device *dev,
 static ssize_t low_cap_limit_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_low_cap_limit);
 	return length;
@@ -388,7 +388,7 @@ static ssize_t low_cap_limit_get(struct device *dev,
 static ssize_t low_cap_limit_dual_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_low_cap_limit_dual);
 	return length;

@@ -620,6 +620,16 @@ config LEDS_LP5521_HTC
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
 
+config LEDS_LP5521_HTC_VK
+	tristate "LED Support for N.S. LP5521 LED driver chip"
+	depends on LEDS_CLASS && I2C
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LP5521 LED driver. It is 3 channel chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
+	  This is only for virtual key led.
+
 config LEDS_TRIGGER_SLEEP
 	tristate "LED Sleep Mode Trigger"
 	depends on LEDS_TRIGGERS && HAS_EARLYSUSPEND

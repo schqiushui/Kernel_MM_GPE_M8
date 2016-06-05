@@ -64,6 +64,9 @@ int qpnp_config_reset_enable(int pon_type, int en);
 int qpnp_get_reset_en(int pon_type);
 #endif /* CONFIG_KPDPWR_S2_DVDD_RESET */
 int qpnp_pon_wd_config(bool enable);
+int qpnp_config_s2_enable(int pon_type, int en);
+int qpnp_get_s2_en(int pon_type);
+void qpnp_kick_s2_timer(void);
 #else
 static int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
 {
@@ -89,6 +92,15 @@ int qpnp_pon_wd_config(bool enable)
 {
 	return -ENODEV;
 }
+static inline int qpnp_config_s2_enable(int pon_type, int en)
+{
+	return -ENODEV;
+}
+static inline int qpnp_get_s2_en(int pon_type)
+{
+	return -ENODEV;
+}
+static inline void qpnp_kick_s2_timer(void){}
 #endif
 
 #endif

@@ -154,6 +154,9 @@ static int32_t msm_actuator_iaf_move_focus(
 	int i,rc;
 	struct msm_camera_i2c_reg_setting reg_setting;
 
+        if(NULL == a_ctrl)
+          return 0;
+
 	for(i = 0;i<30;i++){
 		if(a_ctrl->step_position_table[i] > move_params->num_steps){
 			pr_info("find step step_position_table[%d]:%d move_params->num_steps:%d",i,
@@ -274,7 +277,7 @@ static void msm_actuator_write_focus(
 	int16_t next_lens_pos = 0;
 	uint16_t damping_code_step = 0;
 	uint16_t wait_time = 0;
-	int16_t tmp_curr_step_pos = a_ctrl->curr_step_pos;
+	int16_t tmp_curr_step_pos = 0;
 	int16_t step_pos_step = 1;
 
 	CDBG("Enter\n");
@@ -282,6 +285,7 @@ static void msm_actuator_write_focus(
            printk("%s: Error parameters, a_ctrl = %p, damping_params = %p \n", __func__, a_ctrl, damping_params);
            return;
        }
+        tmp_curr_step_pos = a_ctrl->curr_step_pos;
 	damping_code_step = damping_params->damping_step;
 	wait_time = damping_params->damping_delay;
 

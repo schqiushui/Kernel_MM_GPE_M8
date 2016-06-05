@@ -67,6 +67,7 @@
 #include "linux/mfd/pm8xxx/batt-alarm.h"
 #include "mach/htc_battery_8960.h"
 #include "mach/htc_battery_cell.h"
+#include <linux/smb358-charger.h>
 #include <linux/qpnp/qpnp-charger.h>
 #include <linux/qpnp/qpnp-bms.h>
 #endif /* CONFIG_HTC_BATT_8960 */
@@ -85,7 +86,7 @@
 
 #define HTC_8226_PERSISTENT_RAM_PHYS 0x05B00000
 #ifdef CONFIG_HTC_BUILD_EDIAG
-#define HTC_8226_PERSISTENT_RAM_SIZE (SZ_1M - SZ_128K - SZ_64K - SZ_64K)
+#define HTC_8226_PERSISTENT_RAM_SIZE (SZ_1M - SZ_128K - SZ_64K)
 #else
 #define HTC_8226_PERSISTENT_RAM_SIZE (SZ_1M - SZ_128K)
 #endif
@@ -108,8 +109,8 @@ static struct persistent_ram htc_8226_persistent_ram = {
 };
 
 #ifdef CONFIG_HTC_BUILD_EDIAG
-#define MSM_HTC_PMEM_EDIAG_BASE 0x05BC0000
-#define MSM_HTC_PMEM_EDIAG_SIZE (SZ_128K)
+#define MSM_HTC_PMEM_EDIAG_BASE 0x05BD0000
+#define MSM_HTC_PMEM_EDIAG_SIZE SZ_64K
 #define MSM_HTC_PMEM_EDIAG1_BASE MSM_HTC_PMEM_EDIAG_BASE
 #define MSM_HTC_PMEM_EDIAG1_SIZE MSM_HTC_PMEM_EDIAG_SIZE
 #define MSM_HTC_PMEM_EDIAG2_BASE MSM_HTC_PMEM_EDIAG_BASE
@@ -270,6 +271,9 @@ static void htc_8x26_config_usb_id_gpios(bool output)
 	}
 }
 
+#if defined(CONFIG_MACH_A56_UL) || defined(CONFIG_MACH_DUMMY)
+extern int smb358_is_pwr_src_plugged_in(void);
+#endif
 static struct cable_detect_platform_data cable_detect_pdata = {
 	.detect_type            = CABLE_TYPE_PMIC_ADC,
 	.usb_id_pin_type        = CABLE_TYPE_APP_GPIO,
@@ -281,7 +285,11 @@ static struct cable_detect_platform_data cable_detect_pdata = {
 	.usb_dpdn_switch        = m7_usb_dpdn_switch,
 #endif
 #ifdef CONFIG_HTC_BATT_8960
+#if defined(CONFIG_MACH_A56_UL) || defined(CONFIG_MACH_DUMMY)
+	.is_pwr_src_plugged_in	= smb358_is_pwr_src_plugged_in,
+#else
 	.is_pwr_src_plugged_in	= pm8941_is_pwr_src_plugged_in,
+#endif
 #endif
 	.vbus_debounce_retry = 1,
 };
@@ -503,12 +511,6 @@ static void msm8226_add_usb_devices(void)
 
 	//FIXME: USB PORTING
 	android_usb_pdata.serial_number = board_serialno();
-/*
-	if (board_mfg_mode() != 0) {
-		android_usb_pdata.nluns = 1;
-		android_usb_pdata.cdrom_lun = 0x0;
-	}
-*/
 #ifdef CONFIG_MACH_MEM_UL
 	android_usb_pdata.product_id 	= 0x0629;
 #elif defined(CONFIG_MACH_MEM_WL)
@@ -521,8 +523,6 @@ static void msm8226_add_usb_devices(void)
 #elif defined(CONFIG_MACH_A3_CL)
 	android_usb_pdata.product_id 	= 0x063e;
 	android_usb_pdata.vzw_unmount_cdrom = 1;
-//	android_usb_pdata.nluns = 2;
-//        android_usb_pdata.cdrom_lun = 0x3;
 #elif defined(CONFIG_MACH_A3_TL)
 	android_usb_pdata.product_id 	= 0x0647;
 #else
@@ -576,6 +576,55 @@ static struct htc_battery_platform_data htc_battery_pdev_data = {
 	.chg_limit_active_mask = HTC_BATT_CHG_LIMIT_BIT_TALK |
 								HTC_BATT_CHG_LIMIT_BIT_NAVI |
 								HTC_BATT_CHG_LIMIT_BIT_THRML,
+
+#if defined(CONFIG_MACH_A56_UL) || defined(CONFIG_MACH_DUMMY)
+	.critical_low_voltage_mv = 3200,
+	.critical_alarm_vol_ptr = critical_alarm_voltage_mv,
+	.critical_alarm_vol_cols = sizeof(critical_alarm_voltage_mv) / sizeof(int),
+	.overload_vol_thr_mv = 4000,
+	.overload_curr_thr_ma = 0,
+	.smooth_chg_full_delay_min = 2,
+	.decreased_batt_level_check = 0,
+	.force_shutdown_batt_vol = 3000,
+	.usb_temp_monitor_enable = 1,
+	
+	
+	
+	.usb_temp_overheat_threshold = 650,
+	.disable_pwrpath_after_eoc = 1,
+
+	
+	.icharger.name = "smb358",
+	.icharger.get_charging_source = smb358_get_charging_source,
+	.icharger.get_charging_enabled = smb358_get_charging_enabled,
+	.icharger.set_charger_enable = smb358_charger_enable,
+	.icharger.set_pwrsrc_enable = smb358_pwrsrc_enable,
+	.icharger.set_pwrsrc_and_charger_enable =
+						smb358_set_pwrsrc_and_charger_enable,
+	.icharger.set_limit_charge_enable = smb358_limit_charge_enable,
+	.icharger.set_chg_iusbmax = smb358_set_chg_iusbmax,
+	.icharger.set_chg_vin_min = smb358_set_chg_vin_min,
+	.icharger.is_ovp = smb358_is_charger_ovp,
+	.icharger.is_batt_temp_fault_disable_chg =
+						smb358_is_batt_temp_fault_disable_chg,
+	.icharger.is_under_rating = pm8921_is_pwrsrc_under_rating,
+	.icharger.charger_change_notifier_register =
+						cable_detect_register_notifier,
+	.icharger.dump_all = smb358_dump_all,
+	.icharger.is_safty_timer_timeout = smb358_is_chg_safety_timer_timeout,
+	.icharger.get_attr_text = smb358_charger_get_attr_text,
+	.icharger.is_battery_full_eoc_stop = smb358_is_batt_full_eoc_stop,
+	.icharger.get_charge_type = smb358_get_charge_type,
+	.icharger.get_chg_usb_iusbmax = smb358_get_chg_usb_iusbmax,
+	.icharger.get_chg_vinmin = smb358_get_chg_vinmin,
+	.icharger.get_input_voltage_regulation =
+						smb358_get_input_voltage_regulation,
+	.icharger.set_charger_after_eoc = smb358_set_charger_after_eoc,
+	.icharger.is_hv_battery_detection = smb358_is_hv_battery_detection,
+	.icharger.is_bad_cable_used = smb358_is_bad_cable_used,
+	.icharger.fake_chg_uv_irq_handler = smb358_fake_chg_uv_irq_handler,
+	.icharger.set_limit_charge_on_high_vol_enable = smb358_set_limit_charge_on_high_vol_enable,
+#else
 	.critical_low_voltage_mv = 3200,
 	.critical_alarm_vol_ptr = critical_alarm_voltage_mv,
 	.critical_alarm_vol_cols = sizeof(critical_alarm_voltage_mv) / sizeof(int),
@@ -583,7 +632,9 @@ static struct htc_battery_platform_data htc_battery_pdev_data = {
 	.overload_curr_thr_ma = 0,
 	.smooth_chg_full_delay_min = 3,
 	.decreased_batt_level_check = 1,
-	/* charger */
+	.disable_pwrpath_after_eoc = 1,
+
+	
 	.icharger.name = "pm8x26",
 	.icharger.get_charging_source = pm8941_get_charging_source,
 	.icharger.get_charging_enabled = pm8941_get_charging_enabled,
@@ -591,7 +642,6 @@ static struct htc_battery_platform_data htc_battery_pdev_data = {
 	.icharger.set_pwrsrc_enable = pm8941_pwrsrc_enable,
 	.icharger.set_pwrsrc_and_charger_enable =
 						pm8941_set_pwrsrc_and_charger_enable,
-	.icharger.cable_irq_count = pm8941_cable_irq_count,
 	.icharger.set_limit_charge_enable = pm8941_limit_charge_enable,
 	.icharger.set_chg_iusbmax = pm8941_set_chg_iusbmax,
 	.icharger.set_chg_vin_min = pm8941_set_chg_vin_min,
@@ -611,20 +661,32 @@ static struct htc_battery_platform_data htc_battery_pdev_data = {
 	.icharger.get_input_voltage_regulation =
 						pm8941_get_input_voltage_regulation,
 	.icharger.store_battery_charger_data = pm8941_store_battery_charger_data_emmc,
-	/* gauge */
+	.icharger.set_charger_after_eoc = pm8941_set_charger_after_eoc,
+	.icharger.is_bad_cable_used = pm8941_is_bad_cable_used,
+#endif
+	
 	.igauge.name = "pm8x26",
-	.igauge.get_battery_voltage = pm8941_get_batt_voltage,
 	.igauge.get_battery_current = pm8941_bms_get_batt_current,
+#if defined(CONFIG_MACH_A56_UL) || defined(CONFIG_MACH_DUMMY)
+	.igauge.get_battery_temperature = smb358_get_batt_temperature,
+	.igauge.get_battery_voltage = smb358_get_batt_voltage,
+	.igauge.is_battery_full = smb358_is_batt_full,
+	.igauge.get_attr_text = smb358_gauge_get_attr_text,
+	.igauge.is_battery_temp_fault = smb358_is_batt_temperature_fault,
+#else
+	.igauge.get_battery_voltage = pm8941_get_batt_voltage,
 	.igauge.get_battery_temperature = pm8941_get_batt_temperature,
+	.igauge.is_battery_full = pm8941_is_batt_full,
+	.igauge.get_attr_text = pm8941_gauge_get_attr_text,
+	.igauge.is_battery_temp_fault = pm8941_is_batt_temperature_fault,
+#endif
 	.igauge.get_battery_id = pm8941_get_batt_id,
+	.igauge.get_battery_id_mv = pm8941_get_batt_id_mv,
 	.igauge.get_battery_soc = pm8941_bms_get_batt_soc,
 	.igauge.get_battery_cc = pm8941_bms_get_batt_cc,
 	.igauge.store_battery_gauge_data = pm8941_bms_store_battery_gauge_data_emmc,
 	.igauge.store_battery_ui_soc = pm8941_bms_store_battery_ui_soc,
 	.igauge.get_battery_ui_soc = pm8941_bms_get_battery_ui_soc,
-	.igauge.is_battery_temp_fault = pm8941_is_batt_temperature_fault,
-	.igauge.is_battery_full = pm8941_is_batt_full,
-	.igauge.get_attr_text = pm8941_gauge_get_attr_text,
 	.igauge.set_lower_voltage_alarm_threshold =
 						pm8941_batt_lower_alarm_threshold_set,
 	.igauge.check_soc_for_sw_ocv = pm8941_check_soc_for_sw_ocv,
@@ -749,6 +811,12 @@ static const char *htc_8226_dt_match[] __initconst = {
 	"htc,a5tl",
 	"htc,a5dugl",
 	"htc,a11ul",
+	"htc,a16ul",
+	"htc,a16dwg",
+	"htc,e36ul",
+	"htc,a56dtwl",
+	"htc,a56ul",
+	"htc,a56whl",
 	NULL
 };
 

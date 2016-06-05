@@ -289,7 +289,7 @@ static ssize_t htc_battery_overload(struct device *dev,
                 struct device_attribute *attr,
                 char *buf)
 {
-    return sprintf(buf, "%d\n", battery_core_info.rep.overload);
+    return snprintf(buf,2,"%d\n", battery_core_info.rep.overload);
 }
 
 static ssize_t htc_battery_set_delta(struct device *dev,
@@ -1049,7 +1049,7 @@ static ssize_t htc_battery_show_property(struct device *dev,
 				battery_core_info.rep.charging_enabled);
 		break;
 	case FULL_BAT:
-		#ifdef CONFIG_MACH_M8
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
 			if(battery_core_info.rep.batt_id > 2){
 				i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 						2600);
@@ -1369,7 +1369,7 @@ int htc_battery_core_update_changed(void)
 	/* Sw/power request print out this flag to avoid false alarm from log parser */
 	dbg_cfg = get_htc_debug_flag();
 
-#ifdef CONFIG_MACH_M8
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
 	if(battery_core_info.rep.batt_id > 2){
 		full_batt_reveal = 2600;
 	}

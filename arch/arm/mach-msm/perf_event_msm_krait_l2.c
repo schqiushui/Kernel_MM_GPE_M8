@@ -18,13 +18,11 @@
 
 #include <mach/msm-krait-l2-accessors.h>
 
-/*
- * The L2 PMU is shared between all CPU's, so protect
- * its bitmap access.
- */
+#define PMU_CODE_SIZE 64
+
 struct pmu_constraints {
 	u64 pmu_bitmap;
-	u8 codes[64];
+	u8 codes[PMU_CODE_SIZE];
 	raw_spinlock_t lock;
 } l2_pmu_constraints = {
 	.pmu_bitmap = 0,
@@ -434,7 +432,7 @@ static int msm_l2_test_set_ev_constraint(struct perf_event *event)
 
 	raw_spin_lock_irqsave(&l2_pmu_constraints.lock, flags);
 
-	shift_idx = ((reg * 4) + group);
+	shift_idx = ((reg * 4) + group) & (PMU_CODE_SIZE - 1);
 
 	bitmap_t = 1 << shift_idx;
 
@@ -481,7 +479,7 @@ static int msm_l2_clear_ev_constraint(struct perf_event *event)
 		return 1;
 	raw_spin_lock_irqsave(&l2_pmu_constraints.lock, flags);
 
-	shift_idx = ((reg * 4) + group);
+	shift_idx = ((reg * 4) + group) & (PMU_CODE_SIZE - 1);
 
 	bitmap_t = 1 << shift_idx;
 

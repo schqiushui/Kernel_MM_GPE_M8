@@ -16,6 +16,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/debugfs.h>
 
 struct panel_id {
 	u16 id;
@@ -290,6 +291,7 @@ struct mdss_panel_info {
 
 	int camera_blk;
 	int camera_dua_blk;
+	int extra_bw;
 	int panel_id;
 	int first_power_on;
 	u32 mdss_pp_hue;
@@ -299,10 +301,15 @@ struct mdss_panel_info {
 	uint32_t pcc_g;
 	uint32_t pcc_b;
 
+	bool color_temperature;
+
 	struct htc_backlight1_table brt_bl_table;
 	struct htc_backlight2_table nits_bl_table;
 
 	bool even_roi;
+
+	
+	struct mdss_panel_debugfs_info *debugfs_info;
 };
 
 struct mdss_panel_data {
@@ -313,6 +320,16 @@ struct mdss_panel_data {
 	int (*event_handler) (struct mdss_panel_data *pdata, int e, void *arg);
 	void (*display_on) (struct mdss_panel_data *pdata);
 	struct mdss_panel_data *next;
+};
+
+struct mdss_panel_debugfs_info {
+	struct dentry *root;
+	u32 xres;
+	u32 yres;
+	struct lcd_panel_info lcdc;
+	u32 override_flag;
+	char frame_rate;
+	struct mdss_panel_debugfs_info *next;
 };
 
 static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info)
@@ -374,4 +391,18 @@ struct mdss_panel_cfg *mdss_panel_intf_type(int intf_val);
 int mdss_panel_get_boot_cfg(void);
 
 bool mdss_is_ready(void);
+
+#ifdef CONFIG_FB_MSM_MDSS
+int mdss_panel_debugfs_init(struct mdss_panel_info *panel_info);
+void mdss_panel_debugfs_cleanup(struct mdss_panel_info *panel_info);
+void mdss_panel_debugfsinfo_to_panelinfo(struct mdss_panel_info *panel_info);
+#else
+static inline int mdss_panel_debugfs_init(
+			struct mdss_panel_info *panel_info) { return 0; };
+static inline void mdss_panel_debugfs_cleanup(
+			struct mdss_panel_info *panel_info) { };
+static inline void mdss_panel_debugfsinfo_to_panelinfo(
+			struct mdss_panel_info *panel_info) { };
+#endif
+
 #endif 

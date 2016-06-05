@@ -16,13 +16,13 @@
 #include <linux/errno.h>
 
 #define FCC_CC_COLS		5
-#define FCC_TEMP_COLS		8
+#define FCC_TEMP_COLS		9
 
 #define PC_CC_ROWS             31
 #define PC_CC_COLS             13
 
 #define PC_TEMP_ROWS		31
-#define PC_TEMP_COLS		8
+#define PC_TEMP_COLS		9
 
 #define MAX_SINGLE_LUT_COLS	20
 
@@ -128,6 +128,9 @@ struct bms_battery_data {
 	int			batt_id_kohm;
 	int		qc20_ibatmax_ma;
 	int		qc20_ibatsafe_ma;
+	int			fastchg_current_max_ma;
+	unsigned int		cool_bat_ma;
+	unsigned int		warm_bat_ma;
 };
 
 #if defined(CONFIG_PM8921_BMS) || \

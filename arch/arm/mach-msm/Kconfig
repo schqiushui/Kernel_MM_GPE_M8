@@ -1578,6 +1578,11 @@ config HTC_BATT_8960
         default n
         bool "HTC battery driver for 8960"
 
+config HTC_BATT_GPIO_OVP
+	depends on HTC_BATT_8960
+	default n
+	bool "OVP pin for HTC battery driver"
+
 config HTC_BATT_SWOLLEN_WA
         depends on HTC_BATT_8960
         default n
@@ -3357,6 +3362,12 @@ config MACH_MELS_TUHL
         bool "MSM8974 MELS_TUHL"
         help
           Support for HTC MSM8974 MELS_TUHL
+
+config MACH_A56_UL
+        depends on ARCH_MSM8226
+        bool "MSM8926 A56 UL UHL DUGL"
+        help
+          Support for HTC MSM8226 A56 UL UHL DUGL
 
 endif
 

@@ -24,9 +24,6 @@
 
 static DEFINE_RAW_SPINLOCK(cpu_asid_lock);
 unsigned int cpu_last_asid = ASID_FIRST_VERSION;
-#ifdef CONFIG_SMP
-DEFINE_PER_CPU(struct mm_struct *, current_mm);
-#endif
 
 #ifdef CONFIG_ARM_LPAE
 #define cpu_set_asid(asid) {						\
@@ -170,7 +167,7 @@ static void reset_context(void *info)
 {
 	unsigned int asid;
 	unsigned int cpu = smp_processor_id();
-	struct mm_struct *mm = per_cpu(current_mm, cpu);
+	struct mm_struct *mm = current->active_mm;
 
 	/*
 	 * Check if a current_mm was set on this CPU as it might still

@@ -422,8 +422,8 @@ int android_switch_function(unsigned func)
 	struct android_usb_function *f;
 	
 	struct android_usb_function_holder *f_holder;
-	struct android_usb_function *fadb = NULL;
-	struct android_usb_function *fums = NULL;
+	
+	
 	struct android_configuration *conf;
 	struct android_usb_product *product;
 	int product_id = 0, vendor_id = 0;
@@ -455,7 +455,7 @@ int android_switch_function(unsigned func)
 		return 0;
 	}
 
-	if ((get_radio_flag() & BIT(17)) || (get_debug_flag() & 0x100)) {
+	if ((get_radio_flag() & BIT(17)) || (get_debug_flag() & 0x101)) {
 		if (func == (1 << USB_FUNCTION_CHARGING))
 			func = (1 << USB_FUNCTION_UMS);
 		else if (func == (1 << USB_FUNCTION_ADB))
@@ -464,15 +464,10 @@ int android_switch_function(unsigned func)
 	}
 
 
-	if (get_radio_flag() & BIT(17)) {
-		if ((func & ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB))) == 3) {
-			if (!(func & (1 << USB_FUNCTION_MTP)))
+	if ((func & ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB))) == 3) {
+		if (!((func & (1 << USB_FUNCTION_MTP)) || (func & (1 << USB_FUNCTION_RNDIS))))
 				swap_ums_adb = 1;
-		}
 	}
-
-	if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB) | (1 << USB_FUNCTION_DIAG)))
-		swap_ums_adb = 1;
 
 	if ((get_radio_flag() & BIT(17))) {
 		if (func == ((1 << USB_FUNCTION_MTP) | (1 << USB_FUNCTION_ADB))) { 
@@ -521,9 +516,9 @@ int android_switch_function(unsigned func)
 
 	while ((f = *functions++)) {
 		if ((func & (1 << USB_FUNCTION_UMS)) && !strcmp(f->name, "mass_storage")) {
-			if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB)))
-				fums = f;
-			else if (swap_ums_adb == 1) {
+			
+			
+			if (swap_ums_adb == 1) {
 				if (android_usb_function_holder_list_add(f, &conf->enabled_functions, dev))
 					pr_err("android_switch_function: Cannot add %s\n", f->name);
 			} else {
@@ -532,9 +527,9 @@ int android_switch_function(unsigned func)
 			}
 
 		} else if ((func & (1 << USB_FUNCTION_ADB)) && !strcmp(f->name, "adb")) {
-			if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB)))
-				fadb = f;
-			else if (swap_ums_adb == 1) {
+			
+			
+			if (swap_ums_adb == 1) {
 				if (android_usb_function_holder_list_add(f, &conf->enabled_functions, dev))
 					pr_err("android_switch_function: Cannot add %s\n", f->name);
 			} else {
@@ -639,16 +634,6 @@ int android_switch_function(unsigned func)
 		}
 	}
 	
-	if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB))) {
-		if (fums) {
-			if (android_usb_function_holder_list_add_tail(fums, &conf->enabled_functions, dev))
-				pr_err("android_switch_function: Cannot add %s\n", fums->name);
-		}
-		if (fadb) {
-			if (android_usb_function_holder_list_add_tail(fadb, &conf->enabled_functions, dev))
-				pr_err("android_switch_function: Cannot add %s\n", fadb->name);
-		}
-	}
 
 	list_for_each_entry(f_holder, &conf->enabled_functions, enabled_list)
 		pr_debug("# %s\n", f_holder->f->name);
@@ -819,14 +804,9 @@ void android_switch_default(void)
 	mutex_unlock(&function_bind_sem);
 
 	if (val & (1 << USB_FUNCTION_ADB))
-		android_switch_function(
-				(1 << USB_FUNCTION_MTP) |
-				(1 << USB_FUNCTION_ADB) |
-				(1 << USB_FUNCTION_UMS));
+		android_switch_function((1 << USB_FUNCTION_ADB));
 	else
-		android_switch_function(
-				(1 << USB_FUNCTION_MTP) |
-				(1 << USB_FUNCTION_UMS));
+		android_switch_function((1 << USB_FUNCTION_CHARGING));
 }
 
 void android_switch_htc_mode(void)

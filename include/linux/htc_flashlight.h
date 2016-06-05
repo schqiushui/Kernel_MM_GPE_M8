@@ -71,7 +71,7 @@ enum flashlight_brightness_attribute_definition
     FBAD_FULL       = 255, 
 };
 
-#if defined(CONFIG_FLASHLIGHT_TPS61310) ||defined(CONFIG_FLASHLIGHT_TPS61310_FRONT)
+#if defined(CONFIG_FLASHLIGHT_TPS61310) || defined(CONFIG_FLASHLIGHT_TPS61310_FRONT)
 struct TPS61310_flashlight_platform_data {
 	void (*gpio_init) (void);
 	uint32_t flash_duration_ms;
@@ -92,9 +92,7 @@ extern int (*htc_flash_main)(int ,int);
 extern int (*htc_torch_main)(int ,int);
 extern int (*htc_flash_front)(int ,int);
 extern int (*htc_torch_front)(int ,int);
-#endif
-
-#ifdef CONFIG_FLASHLIGHT_TPS61310
+#elif defined(CONFIG_FLASHLIGHT_TPS61310)
 int tps61310_flashlight_control(int mode);
 int tps61310_flashlight_mode(int mode);
 int tps61310_flashlight_mode2(int mode2, int mode13);

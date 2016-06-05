@@ -66,7 +66,7 @@ int i2c_himax_read(struct i2c_client *client, uint8_t command, uint8_t *data, ui
 	}
 	if (retry == toRetry) {
 		E("%s: i2c_read_block retry over %d\n",
-			__func__, toRetry);
+		  __func__, toRetry);
 		return -EIO;
 	}
 	return 0;
@@ -88,7 +88,7 @@ int i2c_himax_write(struct i2c_client *client, uint8_t command, uint8_t *data, u
 	};
 
 	buf[0] = command;
-	memcpy(buf+1, data, length);
+	memcpy(buf + 1, data, length);
 
 	for (retry = 0; retry < toRetry; retry++) {
 		if (i2c_transfer(client->adapter, msg, 1) == 1)
@@ -98,7 +98,7 @@ int i2c_himax_write(struct i2c_client *client, uint8_t command, uint8_t *data, u
 
 	if (retry == toRetry) {
 		E("%s: i2c_write_block retry over %d\n",
-			__func__, toRetry);
+		  __func__, toRetry);
 		return -EIO;
 	}
 	return 0;
@@ -110,10 +110,10 @@ int i2c_himax_read_command(struct i2c_client *client, uint8_t length, uint8_t *d
 	int retry;
 	struct i2c_msg msg[] = {
 		{
-		.addr = client->addr,
-		.flags = I2C_M_RD,
-		.len = length,
-		.buf = data,
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = length,
+			.buf = data,
 		}
 	};
 
@@ -124,7 +124,7 @@ int i2c_himax_read_command(struct i2c_client *client, uint8_t length, uint8_t *d
 	}
 	if (retry == toRetry) {
 		E("%s: i2c_read_block retry over %d\n",
-		       __func__, toRetry);
+		  __func__, toRetry);
 		return -EIO;
 	}
 	return 0;
@@ -159,7 +159,7 @@ int i2c_himax_master_write(struct i2c_client *client, uint8_t *data, uint8_t len
 
 	if (retry == toRetry) {
 		E("%s: i2c_write_block retry over %d\n",
-		       __func__, toRetry);
+		  __func__, toRetry);
 		return -EIO;
 	}
 	return 0;
@@ -191,7 +191,7 @@ uint8_t himax_int_gpio_read(int pinnum)
 static int reg_set_optimum_mode_check(struct regulator *reg, int load_uA)
 {
 	return (regulator_count_voltages(reg) > 0) ?
-		regulator_set_optimum_mode(reg, load_uA) : 0;
+	       regulator_set_optimum_mode(reg, load_uA) : 0;
 }
 
 static int himax_power_on(struct himax_i2c_platform_data *pdata, bool on)
@@ -215,10 +215,10 @@ static int himax_power_on(struct himax_i2c_platform_data *pdata, bool on)
 
 	if (pdata->digital_pwr_regulator) {
 		rc = reg_set_optimum_mode_check(pdata->vcc_dig,
-					HX_ACTIVE_LOAD_DIG_UA);
+						HX_ACTIVE_LOAD_DIG_UA);
 		if (rc < 0) {
 			E("Regulator vcc_dig set_opt failed rc=%d\n",
-				rc);
+			  rc);
 			goto error_reg_opt_vcc_dig;
 		}
 
@@ -277,7 +277,7 @@ power_off:
 	return 0;
 }
 
-static int himax_regulator_configure(struct i2c_client *client,struct himax_i2c_platform_data *pdata, bool on)
+static int himax_regulator_configure(struct i2c_client *client, struct himax_i2c_platform_data *pdata, bool on)
 {
 	int rc;
 
@@ -293,7 +293,7 @@ static int himax_regulator_configure(struct i2c_client *client,struct himax_i2c_
 
 	if (regulator_count_voltages(pdata->vcc_ana) > 0) {
 		rc = regulator_set_voltage(pdata->vcc_ana, HX_VTG_MIN_UV,
-							HX_VTG_MAX_UV);
+					   HX_VTG_MAX_UV);
 		if (rc) {
 			E("regulator set_vtg failed rc=%d\n", rc);
 			goto error_set_vtg_vcc_ana;
@@ -309,7 +309,7 @@ static int himax_regulator_configure(struct i2c_client *client,struct himax_i2c_
 
 		if (regulator_count_voltages(pdata->vcc_dig) > 0) {
 			rc = regulator_set_voltage(pdata->vcc_dig,
-				HX_VTG_DIG_MIN_UV, HX_VTG_DIG_MAX_UV);
+						   HX_VTG_DIG_MIN_UV, HX_VTG_DIG_MAX_UV);
 			if (rc) {
 				E("regulator set_vtg failed rc=%d\n", rc);
 				goto error_set_vtg_vcc_dig;
@@ -325,7 +325,7 @@ static int himax_regulator_configure(struct i2c_client *client,struct himax_i2c_
 		}
 		if (regulator_count_voltages(pdata->vcc_i2c) > 0) {
 			rc = regulator_set_voltage(pdata->vcc_i2c,
-				HX_I2C_VTG_MIN_UV, HX_I2C_VTG_MAX_UV);
+						   HX_I2C_VTG_MIN_UV, HX_I2C_VTG_MAX_UV);
 			if (rc) {
 				E("regulator set_vtg failed rc=%d\n", rc);
 				goto error_set_vtg_i2c;
@@ -341,7 +341,7 @@ error_get_vtg_i2c:
 	if (pdata->digital_pwr_regulator)
 		if (regulator_count_voltages(pdata->vcc_dig) > 0)
 			regulator_set_voltage(pdata->vcc_dig, 0,
-				HX_VTG_DIG_MAX_UV);
+					      HX_VTG_DIG_MAX_UV);
 error_set_vtg_vcc_dig:
 	if (pdata->digital_pwr_regulator)
 		regulator_put(pdata->vcc_dig);
@@ -359,19 +359,19 @@ hw_shutdown:
 	if (pdata->digital_pwr_regulator) {
 		if (regulator_count_voltages(pdata->vcc_dig) > 0)
 			regulator_set_voltage(pdata->vcc_dig, 0,
-						HX_VTG_DIG_MAX_UV);
+					      HX_VTG_DIG_MAX_UV);
 		regulator_put(pdata->vcc_dig);
 	}
 	if (pdata->i2c_pull_up) {
 		if (regulator_count_voltages(pdata->vcc_i2c) > 0)
 			regulator_set_voltage(pdata->vcc_i2c, 0,
-						HX_I2C_VTG_MAX_UV);
+					      HX_I2C_VTG_MAX_UV);
 		regulator_put(pdata->vcc_i2c);
 	}
 	return 0;
 }
 
-int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_data *pdata)
+int himax_gpio_power_config(struct i2c_client *client, struct himax_i2c_platform_data *pdata)
 {
 	int error;
 
@@ -386,14 +386,14 @@ int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_
 		error = gpio_request(pdata->gpio_reset, "hmx_reset_gpio");
 		if (error) {
 			E("unable to request gpio [%d]\n",
-						pdata->gpio_reset);
+			  pdata->gpio_reset);
 			goto err_regulator_on;
 		}
 
 		error = gpio_direction_output(pdata->gpio_reset, 0);
 		if (error) {
 			E("unable to set direction for gpio [%d]\n",
-				pdata->gpio_reset);
+			  pdata->gpio_reset);
 			goto err_gpio_reset_req;
 		}
 	}
@@ -409,13 +409,13 @@ int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_
 		error = gpio_request(pdata->gpio_irq, "hmx_gpio_irq");
 		if (error) {
 			E("unable to request gpio [%d]\n",
-						pdata->gpio_irq);
+			  pdata->gpio_irq);
 			goto err_power_on;
 		}
 		error = gpio_direction_input(pdata->gpio_irq);
 		if (error) {
 			E("unable to set direction for gpio [%d]\n",
-				pdata->gpio_irq);
+			  pdata->gpio_irq);
 			goto err_gpio_irq_req;
 		}
 		client->irq = gpio_to_irq(pdata->gpio_irq);
@@ -429,8 +429,8 @@ int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_
 		error = gpio_direction_output(pdata->gpio_reset, 1);
 		if (error) {
 			E("unable to set direction for gpio [%d]\n",
-				pdata->gpio_reset);
-				goto err_gpio_irq_req;
+			  pdata->gpio_reset);
+			goto err_gpio_irq_req;
 		}
 	}
 	return 0;
@@ -439,32 +439,32 @@ err_gpio_irq_req:
 	if (gpio_is_valid(pdata->gpio_irq))
 		gpio_free(pdata->gpio_irq);
 err_power_on:
-		himax_power_on(pdata, false);
+	himax_power_on(pdata, false);
 err_gpio_reset_req:
 	if (gpio_is_valid(pdata->gpio_reset))
 		gpio_free(pdata->gpio_reset);
 err_regulator_on:
-		himax_regulator_configure(client, pdata, false);
+	himax_regulator_configure(client, pdata, false);
 err_regulator_not_on:
 
-return error;
+	return error;
 }
 
 #else
-int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_data *pdata)
+int himax_gpio_power_config(struct i2c_client *client, struct himax_i2c_platform_data *pdata)
 {
-	int error=0;
+	int error = 0;
 
 	if (gpio_is_valid(pdata->gpio_irq)) {
-	
-	error = gpio_request(pdata->gpio_irq, "himax_gpio_irq");
-	if (error) {
-			E("unable to request gpio [%d]\n",pdata->gpio_irq);
+		
+		error = gpio_request(pdata->gpio_irq, "himax_gpio_irq");
+		if (error) {
+			E("unable to request gpio [%d]\n", pdata->gpio_irq);
 			return error;
 		}
 		error = gpio_direction_input(pdata->gpio_irq);
 		if (error) {
-			E("unable to set direction for gpio [%d]\n",pdata->gpio_irq);
+			E("unable to set direction for gpio [%d]\n", pdata->gpio_irq);
 			return error;
 		}
 		client->irq = gpio_to_irq(pdata->gpio_irq);
@@ -476,18 +476,18 @@ int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_
 	msleep(20);
 	if (pdata->gpio_reset >= 0) {
 		error = gpio_request(pdata->gpio_reset, "himax-reset");
-		if (error < 0){
-				E("%s: request reset pin failed\n", __func__);
-				return error;
+		if (error < 0) {
+			E("%s: request reset pin failed\n", __func__);
+			return error;
 		}
 	}
 
 	if (pdata->gpio_3v3_en >= 0) {
 		error = gpio_request(pdata->gpio_3v3_en, "himax-3v3_en");
 		if (error < 0) {
-				E("%s: request 3v3_en pin failed\n", __func__);
-				return error;
-			}
+			E("%s: request 3v3_en pin failed\n", __func__);
+			return error;
+		}
 		gpio_direction_output(pdata->gpio_3v3_en, 1);
 		I("3v3_en pin =%d\n", gpio_get_value(pdata->gpio_3v3_en));
 		mdelay(5);
@@ -497,9 +497,22 @@ int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_
 		mdelay(20);
 	}
 
-return error;
+	return error;
 }
 
+void himax_gpio_power_deconfig(struct i2c_client *client, struct himax_i2c_platform_data *pdata)
+{
+	if (gpio_is_valid(pdata->gpio_irq))
+		gpio_free(pdata->gpio_irq);
+	else
+		E("irq gpio not provided\n");
+
+	if (pdata->gpio_reset >= 0)
+		gpio_free(pdata->gpio_reset);
+
+	if (pdata->gpio_3v3_en >= 0)
+		gpio_free(pdata->gpio_3v3_en);
+}
 #endif
 
 #endif
@@ -516,26 +529,23 @@ int i2c_himax_read(struct i2c_client *client, uint8_t command, uint8_t *buf, uin
 	pReadData = gpDMABuf_va;
 	addr = client->addr ;
 
-	toRetry=0;
+	toRetry = 0; 
 	client->addr = client->addr & I2C_MASK_FLAG | I2C_DMA_FLAG | I2C_ENEXT_FLAG;
 	client->timing = 400;
 
-	if(!pReadData)
-	{
+	if(!pReadData) {
 		E(" dma_alloc_coherent failed!\n");
 		return -1;
 	}
 	gpDMABuf_va[0] = command;
 	rc = i2c_master_send(client, gpDMABuf_pa, 1);
-	if (rc < 0)
-	{
+	if (rc < 0) {
 		E(" hx852xes_i2c_dma_recv_data sendcomand failed!\n");
 	}
 	rc = i2c_master_recv(client, gpDMABuf_pa, len);
 	client->addr = addr;
 
-	for(i=0;i<len;i++)
-	{
+	for(i = 0; i < len; i++) {
 		buf[i] = gpDMABuf_va[i];
 	}
 	return rc;
@@ -549,33 +559,31 @@ int i2c_himax_write(struct i2c_client *client, uint8_t command, uint8_t *buf, ui
 {
 
 #ifdef HX_MTK_DMA
-		int rc,i;
-		unsigned short addr = 0;
-		u8 *pWriteData = gpDMABuf_va;
-		addr = client->addr ;
+	int rc, i;
+	unsigned short addr = 0;
+	u8 *pWriteData = gpDMABuf_va;
+	addr = client->addr ;
 
-		toRetry=0;
-		client->addr = client->addr & I2C_MASK_FLAG | I2C_DMA_FLAG | I2C_ENEXT_FLAG;
-		client->timing = 400;
+	toRetry = 0; 
+	client->addr = client->addr & I2C_MASK_FLAG | I2C_DMA_FLAG | I2C_ENEXT_FLAG;
+	client->timing = 400;
 
-		if(!pWriteData)
-		{
-			E("dma_alloc_coherent failed!\n");
-			return -1;
-		}
+	if(!pWriteData) {
+		E("dma_alloc_coherent failed!\n");
+		return -1;
+	}
 
-		gpDMABuf_va[0] = command;
+	gpDMABuf_va[0] = command;
 
-		for(i=0;i<len;i++)
-		{
-			gpDMABuf_va[i+1] = buf[i];
-		}
+	for(i = 0; i < len; i++) {
+		gpDMABuf_va[i + 1] = buf[i];
+	}
 
-		rc = i2c_master_send(client, gpDMABuf_pa, len+1);
-		client->addr = addr;
-		return rc;
+	rc = i2c_master_send(client, gpDMABuf_pa, len + 1);
+	client->addr = addr;
+	return rc;
 #else
-		return i2c_smbus_write_i2c_block_data(client, command, len, buf);
+	return i2c_smbus_write_i2c_block_data(client, command, len, buf);
 #endif
 
 }
@@ -592,42 +600,39 @@ int i2c_himax_write_command(struct i2c_client *client, uint8_t command, uint8_t 
 
 int i2c_himax_master_write(struct i2c_client *client, uint8_t *buf, uint8_t len, uint8_t toRetry)
 {
-		int i;
-		uint8_t dmabuf[len + 1];
+	int i;
+	uint8_t dmabuf[len + 1];
 #ifdef HX_MTK_DMA
-		int rc;
-		unsigned short addr = 0;
-		u8 *pWriteData = gpDMABuf_va;
+	int rc;
+	unsigned short addr = 0;
+	u8 *pWriteData = gpDMABuf_va;
 
-		addr = client->addr ;
+	addr = client->addr ;
 
-		toRetry=0;
-		client->addr = client->addr & I2C_MASK_FLAG | I2C_DMA_FLAG | I2C_ENEXT_FLAG;
-		client->timing = 400;
+	toRetry = 0; 
+	client->addr = client->addr & I2C_MASK_FLAG | I2C_DMA_FLAG | I2C_ENEXT_FLAG;
+	client->timing = 400;
 
-		if(!pWriteData)
-		{
-			E("dma_alloc_coherent failed!\n");
-			return -1;
-		}
+	if(!pWriteData) {
+		E("dma_alloc_coherent failed!\n");
+		return -1;
+	}
 
-		for(i=0;i<len;i++)
-		{
-			gpDMABuf_va[i] = buf[i];
-		}
+	for(i = 0; i < len; i++) {
+		gpDMABuf_va[i] = buf[i];
+	}
 
-		rc = i2c_master_send(client, gpDMABuf_pa, len);
-		client->addr = addr;
-		return rc;
+	rc = i2c_master_send(client, gpDMABuf_pa, len);
+	client->addr = addr;
+	return rc;
 #else
-		uint8_t command;
+	uint8_t command;
 
-		command = buf[0];
-		for(i=1;i<len;i++)
-		{
-			dmabuf[i-1] = buf[i];
-		}
-		return i2c_smbus_write_i2c_block_data(client, command, len, dmabuf);
+	command = buf[0];
+	for(i = 1; i < len; i++) {
+		dmabuf[i - 1] = buf[i];
+	}
+	return i2c_smbus_write_i2c_block_data(client, command, len, dmabuf);
 #endif
 
 }
@@ -660,9 +665,9 @@ uint8_t himax_int_gpio_read(int pinnum)
 	return mt_get_gpio_in(GPIO_CTP_EINT_PIN);
 }
 
-int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_data *pdata)
+int himax_gpio_power_config(struct i2c_client *client, struct himax_i2c_platform_data *pdata)
 {
-	int error=0;
+	int error = 0;
 
 	
 	
@@ -692,7 +697,7 @@ int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_
 	mt_set_gpio_out(GPIO_CTP_RST_PIN, GPIO_OUT_ONE);
 	msleep(20);
 
-return error;
+	return error;
 }
 
 #endif

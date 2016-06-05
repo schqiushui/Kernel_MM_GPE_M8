@@ -72,6 +72,46 @@ struct modem_data {
 
 #define subsys_to_drv(d) container_of(d, struct modem_data, subsys_desc)
 
+#if defined(CONFIG_HTC_FEATURES_SSR)
+#if defined(CONFIG_HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS)
+static int htc_skip_ramdump=false;
+static void htc_set_ramdump_mode (struct subsys_device *dev)
+{
+#if defined(CONFIG_HTC_FEATURES_SSR_MODEM_ENABLE)
+	if (get_kernel_flag() & (KERNEL_FLAG_ENABLE_SSR_MODEM)) {
+			subsys_set_restart_level(dev, RESET_SOC);
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+	else {
+		subsys_set_restart_level(dev, RESET_SUBSYS_COUPLED);
+		if (get_radio_flag() & BIT(3))
+			subsys_set_enable_ramdump(dev, ENABLE_RAMDUMP);
+		else
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+#else
+	if (get_kernel_flag() & (KERNEL_FLAG_ENABLE_SSR_MODEM)) {
+		subsys_set_restart_level(dev, RESET_SUBSYS_COUPLED);
+		if (get_radio_flag() & BIT(3))
+			subsys_set_enable_ramdump(dev, ENABLE_RAMDUMP);
+		else
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+	else {
+		subsys_set_restart_level(dev, RESET_SOC);
+		subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+#endif
+
+	if (board_mfg_mode() != 0) {
+		subsys_set_restart_level(dev, RESET_SOC);
+		subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+}
+#endif
+#endif
+
+
 #if defined(CONFIG_HTC_DEBUG_SSR)
 static void log_modem_sfr(struct subsys_device *dev)
 #else
@@ -93,7 +133,28 @@ static void log_modem_sfr(void)
 
 	strlcpy(reason, smem_reason, min(size, sizeof(reason)));
 	pr_err("modem subsystem failure reason: %s.\n", reason);
+
 #if defined(CONFIG_HTC_DEBUG_SSR)
+#if defined(CONFIG_HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS)
+#if defined(CONFIG_HTC_FEATURES_SSR) 
+	if (get_radio_flag() & BIT(3)) 
+	{
+		if (strstr(reason, "[htc_disable_ssr]") || strstr(reason, "SFR Init: wdog or kernel error suspected") )
+		{
+			subsys_set_restart_level(dev, RESET_SOC);
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+			pr_info("%s: [pil] Modem request full dump.\n", __func__);
+		}
+		else if (strstr(reason, "[htc_skip_ramdump]"))
+		{
+			htc_skip_ramdump=true;
+			subsys_set_restart_level(dev, RESET_SUBSYS_COUPLED);
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+			pr_info("%s: [pil] Modem request skip ramdump.\n", __func__);
+		}
+	}
+#endif 
+#endif 
 	subsys_set_restart_reason(dev, reason);
 #endif
 
@@ -180,6 +241,18 @@ static int modem_powerup(const struct subsys_desc *subsys)
 		return 0;
 	INIT_COMPLETION(drv->stop_ack);
 	drv->ignore_errors = false;
+
+#if defined(CONFIG_HTC_FEATURES_SSR) 
+#if defined(CONFIG_HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS)
+	if (htc_skip_ramdump==true)
+	{
+		htc_skip_ramdump=false;
+		htc_set_ramdump_mode(drv->subsys);
+		pr_info("%s: [pil] restore htc ramdump mode!!\n",__func__);
+	}
+#endif 
+#endif 
+
 	ret = pil_boot(&drv->q6->desc);
 	if (ret)
 		return ret;

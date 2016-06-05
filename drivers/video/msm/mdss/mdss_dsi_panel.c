@@ -937,6 +937,9 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np,
 		"qcom,mdss-dsi-underflow-color", &tmp);
 	pinfo->lcdc.underflow_clr = (!rc ? tmp : 0xff);
+#ifdef CONFIG_FB_MSM_UNDERFLOW_BLACK
+	pinfo->lcdc.underflow_clr = 0;
+#endif
 	rc = of_property_read_u32(np,
 		"qcom,mdss-dsi-border-color", &tmp);
 	pinfo->lcdc.border_clr = (!rc ? tmp : 0);
@@ -1147,6 +1150,9 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "htc,mdss-camera-dua-blk", &tmp);
 	pinfo->camera_dua_blk = (!rc ? tmp : pinfo->camera_blk);
 
+	rc = of_property_read_u32(np, "htc,mdss-extra-bw", &tmp);
+	pinfo->extra_bw = (!rc ? tmp : 0);
+
 	htc_mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->cabc_off_cmds,
 		"htc-fmt,cabc-off-cmds", "qcom,mdss-dsi-default-command-state");
 
@@ -1181,14 +1187,19 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "htc,mdss-pp-hue", &tmp);
 	pinfo->mdss_pp_hue = (!rc ? tmp : 0);
 
-	rc = of_property_read_u32(np, "htc,mdp-pcc-r", &tmp);
-	pinfo->pcc_r = (!rc ? tmp : 0);
+	
+	pinfo->color_temperature = of_property_read_bool(np, "htc,color-temperature");
+	if (!(pinfo->color_temperature)) {
+		
+		rc = of_property_read_u32(np, "htc,mdp-pcc-r", &tmp);
+		pinfo->pcc_r = (!rc ? tmp : 0);
 
-	rc = of_property_read_u32(np, "htc,mdp-pcc-g", &tmp);
-	pinfo->pcc_g = (!rc ? tmp : 0);
+		rc = of_property_read_u32(np, "htc,mdp-pcc-g", &tmp);
+		pinfo->pcc_g = (!rc ? tmp : 0);
 
-	rc = of_property_read_u32(np, "htc,mdp-pcc-b", &tmp);
-	pinfo->pcc_b = (!rc ? tmp : 0);
+		rc = of_property_read_u32(np, "htc,mdp-pcc-b", &tmp);
+		pinfo->pcc_b = (!rc ? tmp : 0);
+	}
 
 	pinfo->skip_frame = of_property_read_bool(np, "htc,skip-frame");
 

@@ -1163,6 +1163,7 @@ static void gsensor_poll_work_func(struct work_struct *work)
 		
 
 		if (ignore_first_event >= 3) {
+			input_report_abs(akm->input_dev, ABS_X, 10000);
 			input_report_abs(akm->input_dev, ABS_X, g_acc[0]);
 			input_report_abs(akm->input_dev, ABS_Y, g_acc[1]);
 			input_report_abs(akm->input_dev, ABS_Z, g_acc[2]);
@@ -1525,6 +1526,33 @@ static DEVICE_ACCESSORY_ATTR(PhoneOnOffFlag, 0664, \
 	bma250_show, bma250_store);
 
 
+static ssize_t flush_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = sprintf(buf, "%d\n", 1);
+
+	return ret;
+}
+
+static ssize_t flush_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct bma250_data *bma250 = gdata;
+
+	I("%s++:\n", __func__);
+
+	input_report_rel(bma250->input_cir, SLOP_INTERRUPT, 777);
+	input_sync(bma250->input_cir);
+
+	return count;
+}
+
+static DEVICE_ACCESSORY_ATTR(flush, 0664, flush_show, flush_store);
+
+
 static ssize_t bma250_chipID_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -1627,6 +1655,10 @@ static int bma250_registerAttr(void)
 		goto err_create_accelerometer_debug_en_device_file;
 
 	ret = device_create_file(accelerometer_dev, &dev_attr_ChipID);
+	if (ret)
+		goto err_create_accelerometer_debug_en_device_file;
+
+	ret = device_create_file(accelerometer_dev, &dev_attr_flush);
 	if (ret)
 		goto err_create_accelerometer_debug_en_device_file;
 

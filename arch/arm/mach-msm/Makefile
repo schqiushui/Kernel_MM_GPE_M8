@@ -307,11 +307,12 @@ ifdef CONFIG_BT
   obj-$(CONFIG_ARCH_MSM8226) += htc_bdaddress.o
 endif #CONFIG_BT
 obj-$(CONFIG_ARCH_MSM8226) += board-htc-8x26.o htc_acoustic_alsa.o
-obj-$(CONFIG_ARCH_MSM8226) += board-8226-audio.o
+#obj-$(CONFIG_ARCH_MSM8226) += board-8226-audio.o
 obj-$(CONFIG_MACH_MEM_UL) += board-mem-audio-amp.o
 obj-$(CONFIG_MACH_A5_UL) += board-afe-audio-amp.o
 obj-$(CONFIG_MACH_A5_DWG) += board-afe-audio-amp.o
 obj-$(CONFIG_MACH_A5_TL) += board-afe-audio-amp.o
+obj-$(CONFIG_MACH_A56_UL) += board-afe-audio-amp.o
 obj-$(CONFIG_ARCH_MSM8226) += board-8226.o board-8226-gpiomux.o
 obj-$(CONFIG_ARCH_MSM8226) += clock-local2.o clock-pll.o clock-8226.o clock-rpm.o clock-voter.o clock-mdss-8974.o
 obj-$(CONFIG_ARCH_MSM8226) += acpuclock-8226.o acpuclock-cortex.o
@@ -476,18 +477,19 @@ obj-$(CONFIG_MACH_EYE_WHL) += board-eye-gpiomux.o board-m8-audio.o
 
 obj-$(CONFIG_MACH_MELS_TUHL) += board-mels-gpiomux.o board-m8-audio.o
 
-obj-$(CONFIG_MACH_J1) += board-j1-gpiomux.o
-obj-$(CONFIG_MACH_A3_UL) += board-a3ul-gpiomux.o
-obj-$(CONFIG_MACH_A3_CL) += board-a3cl-gpiomux.o
-obj-$(CONFIG_MACH_A3_TL) += board-a3tl-gpiomux.o
-obj-$(CONFIG_MACH_MEM_UL) += board-mem-gpiomux.o
-obj-$(CONFIG_MACH_MEM_WL) += board-mem-gpiomux.o
-obj-$(CONFIG_MACH_A5_DWG) += board-a5dwg-gpiomux.o
-obj-$(CONFIG_MACH_A5_UL) += board-a5ul-gpiomux.o
-obj-$(CONFIG_MACH_A5_TL) += board-a5tl-gpiomux.o
-obj-$(CONFIG_MACH_A5_DWGL) += board-a5dwgl-gpiomux.o
-obj-$(CONFIG_MACH_A5_DUGL) += board-a5dugl-gpiomux.o
-obj-$(CONFIG_MACH_A11_UL) += board-a11ul-gpiomux.o
+obj-$(CONFIG_MACH_J1) += board-j1-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A3_UL) += board-a3ul-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A3_CL) += board-a3cl-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A3_TL) += board-a3tl-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_MEM_UL) += board-mem-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_MEM_WL) += board-mem-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A5_DWG) += board-a5dwg-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A5_UL) += board-a5ul-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A5_TL) += board-a5tl-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A5_DWGL) += board-a5dwgl-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A5_DUGL) += board-a5dugl-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A11_UL) += board-a11ul-gpiomux.o board-8226-audio.o
+obj-$(CONFIG_MACH_A56_UL) += board-a56ul-gpiomux.o board-8226-audio.o
 
 obj-$(CONFIG_HTC_HEADSET_PMIC) += htc_headset_pmic.o
 obj-$(CONFIG_HTC_HEADSET_GPIO) += htc_headset_gpio.o

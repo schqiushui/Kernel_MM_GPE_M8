@@ -316,6 +316,8 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 		pinfo = &mixer->ctl->panel_data->panel_info;
 		if (pinfo->type == MIPI_VIDEO_PANEL) {
 			fps = pinfo->panel_max_fps;
+			if (pinfo->extra_bw > 0)
+				fps = fps + pinfo->extra_bw;
 			v_total = pinfo->panel_max_vtotal;
 		} else {
 			fps = mdss_panel_get_framerate(pinfo);
@@ -433,6 +435,8 @@ static void mdss_mdp_perf_calc_mixer(struct mdss_mdp_mixer *mixer,
 			pinfo = &mixer->ctl->panel_data->panel_info;
 			if (pinfo->type == MIPI_VIDEO_PANEL) {
 				fps = pinfo->panel_max_fps;
+				if (pinfo->extra_bw > 0)
+					fps = fps + pinfo->extra_bw;
 				v_total = pinfo->panel_max_vtotal;
 			} else {
 				fps = mdss_panel_get_framerate(pinfo);
@@ -539,6 +543,8 @@ static u32 mdss_mdp_get_vbp_factor(struct mdss_mdp_ctl *ctl)
 
 	pinfo = &ctl->panel_data->panel_info;
 	fps = mdss_panel_get_framerate(pinfo);
+	if (pinfo->extra_bw > 0)
+		fps = fps + pinfo->extra_bw;
 	v_total = mdss_panel_get_vtotal(pinfo);
 	vbp = pinfo->lcdc.v_back_porch + pinfo->lcdc.v_pulse_width;
 	vbp_fac = (vbp) ? fps * v_total / vbp : 0;

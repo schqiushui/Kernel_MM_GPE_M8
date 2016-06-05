@@ -790,7 +790,7 @@ int htc_backlight_transfer_bl_brightness(int val, struct mdss_panel_info *panel_
 			}
 		}
 	}
-	pr_info("%s: mode=%d, %d transfer to %d\n", __func__, brightness_to_bl, val, result);
+	PR_DISP_INFO("%s: mode=%d, %d transfer to %d\n", __func__, brightness_to_bl, val, result);
 	return result;
 }
 

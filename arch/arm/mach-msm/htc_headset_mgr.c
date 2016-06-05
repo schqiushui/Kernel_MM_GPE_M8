@@ -881,7 +881,6 @@ static void mic_detect_work_func(struct work_struct *work)
 		hi->hs_35mm_type = mic;
 #ifdef CONFIG_HTC_HEADSET_INT_REDETECT
 		if (new_state != 0) {
-			new_state |= old_state;
 		}
 		else {
 			new_state = 0;
@@ -890,8 +889,6 @@ static void mic_detect_work_func(struct work_struct *work)
 				hs_mgr_notifier.hs_insert(0);
 #endif
 		}
-#else
-		new_state |= old_state;
 #endif
 		switch_set_state(&hi->sdev_h2w, new_state);
 		HS_LOG_TIME("Sent uevent 0x%x ==> 0x%x", old_state, new_state);
@@ -2162,9 +2159,12 @@ static ssize_t debug_flag_store(struct device *dev,
 	} else if (strncmp(buf, "1wire_init", count - 1) == 0) {
 		hs_mgr_notifier.hs_1wire_init();
 	} else if (strncmp(buf, "init_gpio", count - 1) == 0) {
-		hi->pdata.uart_tx_gpo(HS_RX_ALT);
-		hi->pdata.uart_lv_shift_en(0);
-		hi->pdata.uart_tx_gpo(HS_TX_ALT);
+		if (hi->pdata.uart_tx_gpo)
+			hi->pdata.uart_tx_gpo(HS_RX_ALT);
+		if (hi->pdata.uart_lv_shift_en)
+			hi->pdata.uart_lv_shift_en(0);
+		if (hi->pdata.uart_tx_gpo)
+			hi->pdata.uart_tx_gpo(HS_TX_ALT);
 	} else {
 		HS_LOG("Invalid parameter");
 		return count;
@@ -2393,18 +2393,22 @@ static int htc_headset_mgr_resume(struct platform_device *pdev)
 };
 */
 static void headset_power(int enable);
+#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
 static void headset_init(void);
 static void uart_tx_gpo(int mode);
 static void uart_lv_shift_en(int enable);
-
+#endif
 static struct htc_headset_mgr_platform_data htc_headset_mgr_data = {
 	.driver_flag		= DRIVER_HS_MGR_FLOAT_DET,
 	//.headset_config_num	= ARRAY_SIZE(htc_headset_mgr_config),
 	//.headset_config		= htc_headset_mgr_config,
         .headset_init		= headset_init,
 	.headset_power		= headset_power,
+#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
+	.headset_init		= headset_init,
 	.uart_tx_gpo		= uart_tx_gpo,
 	.uart_lv_shift_en	= uart_lv_shift_en,
+#endif
 };
 
 static void headset_power(int enable)
@@ -2418,6 +2422,7 @@ static void headset_power(int enable)
 #endif
 }
 
+#ifdef CONFIG_HTC_HEADSET_ONE_WIRE
 static void headset_init(void)
 {
 	int ret=0;
@@ -2489,6 +2494,7 @@ static void uart_lv_shift_en(int enable)
 	if(OEz != enable)
 		HS_LOG("(%s) level shfit setting fail(%d_\n", __func__, OEz);
 }
+#endif
 
 static int headset_mgr_parser_dt(struct htc_hs_mgr_data *mgr)
 {
@@ -2512,6 +2518,7 @@ static int headset_mgr_parser_dt(struct htc_hs_mgr_data *mgr)
 			goto parser_fail;
 		}
 	}
+
 	if (i == ARRAY_SIZE(parser_st)) {
 		htc_headset_mgr_data.tx_gpio   = gpio[0];
 		htc_headset_mgr_data.rx_gpio   = gpio[1];
@@ -2585,6 +2592,7 @@ static int headset_mgr_parser_dt(struct htc_hs_mgr_data *mgr)
 
 	memcpy(mgr->pdata, &htc_headset_mgr_data, sizeof(htc_headset_mgr_data));
 
+	kfree(hs_list);
 	return 0;
 
 parser_fail:

@@ -34,23 +34,6 @@
 };
 
 &pm8941_lsid1 {
-	pwm@b200 {
-		qcom,lpg {
-			cell-index = <1>;
-			label = "lpg";
-			linux,name = "button-backlight";
-			qcom,channel-id = <1>;
-			qcom,lut_coefficient = <20>;
-			qcom,duty-percents = <00 15 30 45 60 75 100>; //Use percents in decimal, not in hex like in LED duty-pcts array
-			qcom,lpg-lut-ramp-direction = <0>;
-			qcom,lpg-lut-ramp-toggle = <0>;
-			qcom,lpg-lut-pause-hi = <320>;
-			qcom,lpg-lut-pause-lo = <320>;
-			qcom,ramp-step-duration = <64>;
-			qcom,lpg-lut-enable-pause-hi = <1>;
-			qcom,lpg-lut-enable-pause-lo = <1>;
-		};
-	};
 	qcom,leds@d000 {
 		status = "okay";
 		qcom,rgb_0 {

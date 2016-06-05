@@ -342,6 +342,7 @@ static void AKECS_SetYPR(
 	/* Report acceleration sensor information */
 	if (ready & ACC_DATA_READY) {
 		/*D("%s: Report Acc\n", __func__);*/
+		input_report_abs(akm->input, ABS_X, 10000);
 		input_report_abs(akm->input, ABS_X, rbuf[1]);
 		input_report_abs(akm->input, ABS_Y, rbuf[2]);
 		input_report_abs(akm->input, ABS_Z, rbuf[3]);
@@ -350,6 +351,7 @@ static void AKECS_SetYPR(
 	/* Report magnetic vector information */
 	if (ready & MAG_DATA_READY) {
 		/*D("%s: Report Magnetic Field\n", __func__);*/
+		input_report_abs(akm->input, ABS_RX, 10000);
 		input_report_abs(akm->input, ABS_RX, rbuf[5]);
 		input_report_abs(akm->input, ABS_RY, rbuf[6]);
 		input_report_abs(akm->input, ABS_RZ, rbuf[7]);
@@ -359,6 +361,7 @@ static void AKECS_SetYPR(
 	if (ready & FUSION_DATA_READY) {
 		/*D("%s: Report Fusion\n", __func__);*/
 		/* Orientation */
+		input_report_abs(akm->input, ABS_HAT0X, 10000);
 		input_report_abs(akm->input, ABS_HAT0X, rbuf[9]);
 		input_report_abs(akm->input, ABS_HAT0Y, rbuf[10]);
 		input_report_abs(akm->input, ABS_HAT1X, rbuf[11]);

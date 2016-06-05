@@ -180,3 +180,15 @@ config HTC_DEBUG_RIL_PCN0006_HTC_DUMP_BAM_DMUX_LOG
 	depends on MSM_BAM_DMUX
 	---help---
 	  Dump BAM DMUX log message
+
+config HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS
+	tristate "HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS"
+	depends on HTC_FEATURES && HTC_FEATURES_SSR
+	default y
+	---help---
+	  Change ramdump mode by modem send specific words in SSR reason
+
+config LMK_ZYGOTE_PROTECT
+       bool "LMK zygote protect"
+       default n
+       help

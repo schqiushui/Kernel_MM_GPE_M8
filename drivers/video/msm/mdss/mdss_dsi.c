@@ -833,6 +833,28 @@ int mdss_dsi_register_recovery_handler(struct mdss_dsi_ctrl_pdata *ctrl,
 	return 0;
 }
 
+static int mdss_dsi_clk_refresh(struct mdss_panel_data *pdata)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+	int rc = 0;
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+							panel_data);
+	rc = mdss_dsi_clk_div_config(&pdata->panel_info,
+			pdata->panel_info.mipi.frame_rate);
+	if (rc) {
+		pr_err("%s: unable to initialize the clk dividers\n",
+								__func__);
+		return rc;
+	}
+	ctrl_pdata->refresh_clk_rate = false;
+	ctrl_pdata->pclk_rate = pdata->panel_info.mipi.dsi_pclk_rate;
+	ctrl_pdata->byte_clk_rate = pdata->panel_info.clk_rate / 8;
+	pr_debug("%s ctrl_pdata->byte_clk_rate=%d ctrl_pdata->pclk_rate=%d\n",
+		__func__, ctrl_pdata->byte_clk_rate, ctrl_pdata->pclk_rate);
+	return rc;
+}
+
 static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 				  int event, void *arg)
 {
@@ -848,7 +870,14 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 	pr_debug("%s+:event=%d\n", __func__, event);
 
 	switch (event) {
+	case MDSS_EVENT_CHECK_PARAMS:
+		pr_debug("%s:Entered Case MDSS_EVENT_CHECK_PARAMS\n", __func__);
+		ctrl_pdata->refresh_clk_rate = true;
+		break;
 	case MDSS_EVENT_UNBLANK:
+		if (ctrl_pdata->refresh_clk_rate)
+			rc = mdss_dsi_clk_refresh(pdata);
+
 		rc = mdss_dsi_on(pdata);
 		mdss_dsi_op_mode_config(pdata->panel_info.mipi.mode,
 							pdata);

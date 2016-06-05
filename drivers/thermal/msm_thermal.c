@@ -1076,6 +1076,7 @@ static int __ref update_offline_cores(int val)
 		else
 			pr_debug("Offlined CPU%d\n", cpu);
 	}
+	pr_info("cpus_offlined: %d\n", cpus_offlined);
 	return ret;
 }
 
@@ -1110,6 +1111,7 @@ static __ref int do_hotplug(void *data)
 			if (cpus[cpu].offline || cpus[cpu].user_offline)
 				mask |= BIT(cpu);
 		}
+		pr_info("mask: %d\n", mask);
 		if (mask != cpus_offlined)
 			update_offline_cores(mask);
 		mutex_unlock(&core_control_mutex);
@@ -2042,6 +2044,9 @@ static ssize_t __ref store_cpus_offlined(struct kobject *kobj,
 		pr_err("Ignoring request; polling thread is enabled.\n");
 		goto done_cc;
 	}
+
+	pr_info("\"%s\"(PID:%i) request cpus offlined mask %d \n", current->comm,
+                        current->pid, val);
 
 	for_each_possible_cpu(cpu) {
 		if (!(msm_thermal_info.core_control_mask & BIT(cpu)))

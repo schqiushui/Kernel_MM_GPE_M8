@@ -2509,6 +2509,8 @@ static int CWMCU_suspend(struct device *dev)
 {
 	uint8_t data = 0x00;
 	D("[CWMCU] %s\n",__func__);
+
+	disable_irq(mcu_data->IRQ);
 #if USE_WAKE_MCU
 	UseWakeMcu = 1;
 	CWMCU_i2c_write(mcu_data, HTC_SYSTEM_STATUS_REG, &data, 1);
@@ -2531,6 +2533,8 @@ static void resume_do_work(struct work_struct *w)
 	UseWakeMcu = 0;
 
 	mcu_data->resume_done = 1;
+
+	enable_irq(mcu_data->IRQ);
 
 	I("[CWMCU] %s--\n",__func__);
 }

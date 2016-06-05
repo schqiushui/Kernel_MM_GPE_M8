@@ -78,7 +78,6 @@
 		qcom,mdss-dsi-default-command-state = "dsi_hs_mode";
 		qcom,mdss-pan-physical-width-dimension = <68>;
 		qcom,mdss-pan-physical-height-dimension = <121>;
-		qcom,mdss-shrink-pwm = <7 61 255>;
 		qcom,mdss-dsi-lp11-init;
 		htc,mdss-camera-blk = <194>;
 		htc,mdss-camera-blk-power-hack = <169>;
@@ -87,6 +86,7 @@
 		htc,mdp-pcc-b = <0x7BAB>;
 		htc,panel-id=<1>;
 		htc,brt-bl-table = <30 7>, <142 61>, <255 255>;
+		htc,brt-bl-table-power-hack = <30 7>, <142 61>, <255 255>;
 	};
 	qcom,mdss_dsi_a5_truly_novatek_35521_720p_video {
 		compatible = "qcom,mdss-dsi-panel";

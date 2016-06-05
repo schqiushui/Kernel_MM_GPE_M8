@@ -1955,7 +1955,6 @@ static int venus_hfi_core_init(void *device)
 	VENUS_SET_STATE(dev, VENUS_STATE_INIT);
 
 	dev->intr_status = 0;
-	INIT_LIST_HEAD(&dev->sess_head);
 	venus_hfi_set_registers(dev);
 
 	if (!dev->hal_client) {
@@ -3735,7 +3734,8 @@ static void venus_hfi_unload_fw(void *dev)
 		return;
 	}
 	if (device->resources.fw.cookie) {
-		flush_workqueue(device->vidc_workq);
+		if (device->state != VENUS_STATE_DEINIT)
+			flush_workqueue(device->vidc_workq);
 		flush_workqueue(device->venus_pm_workq);
 		subsystem_put(device->resources.fw.cookie);
 		venus_hfi_interface_queues_release(dev);
@@ -3759,7 +3759,7 @@ static int venus_hfi_get_fw_info(void *dev, struct hal_fw_info *fw_info)
 	struct venus_hfi_device *device = dev;
 	u32 smem_block_size = 0;
 	u8 *smem_table_ptr;
-	char version[VENUS_VERSION_LENGTH];
+	char version[VENUS_VERSION_LENGTH] = {'\0'};
 	const u32 version_string_size = VENUS_VERSION_LENGTH;
 	const u32 smem_image_index_venus = 14 * 128;
 
@@ -3893,6 +3893,7 @@ static void *venus_hfi_add_device(u32 device_id,
 	mutex_init(&hdevice->session_lock);
 	mutex_init(&hdevice->clk_pwr_lock);
 
+	INIT_LIST_HEAD(&hdevice->sess_head);
 	if (hal_ctxt.dev_count == 0)
 		INIT_LIST_HEAD(&hal_ctxt.dev_head);
 
