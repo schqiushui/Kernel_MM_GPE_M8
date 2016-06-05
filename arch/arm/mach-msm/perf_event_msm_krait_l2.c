@@ -435,7 +435,7 @@ static int msm_l2_test_set_ev_constraint(struct perf_event *event)
 
 	raw_spin_lock_irqsave(&l2_pmu_constraints.lock, flags);
 
-	shift_idx = ((reg * 4) + group);
+	shift_idx = ((reg * 4) + group) & (PMU_CODES_SIZE - 1);
 
 	if (shift_idx >= PMU_CODES_SIZE) {
 		err =  -EINVAL;
@@ -488,7 +488,7 @@ static int msm_l2_clear_ev_constraint(struct perf_event *event)
 		return 1;
 	raw_spin_lock_irqsave(&l2_pmu_constraints.lock, flags);
 
-	shift_idx = ((reg * 4) + group);
+	shift_idx = ((reg * 4) + group) & (PMU_CODES_SIZE - 1);
 
 	if (shift_idx >= PMU_CODES_SIZE) {
 		err = -EINVAL;

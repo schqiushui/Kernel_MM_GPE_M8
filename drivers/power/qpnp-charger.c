@@ -487,6 +487,7 @@ struct qpnp_chg_chip {
 	struct delayed_work		fix_reverse_boost_check_work;
 	struct delayed_work		arb_stop_work;
 	struct delayed_work		eoc_work;
+	struct delayed_work     cable_impedance_work;
 	struct work_struct		soc_check_work;
 	struct delayed_work		aicl_check_work;
 	struct delayed_work     ovpfet_resistance_check_work;
@@ -494,6 +495,9 @@ struct qpnp_chg_chip {
 	struct delayed_work		resume_vddmax_configure_work;
 	struct delayed_work		update_ovp_uvp_work;
 	struct delayed_work		readjust_vddmax_configure_work;
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+	struct delayed_work		check_external_ovp_work;
+#endif
 	struct workqueue_struct 	*aicl_check_wq;
 	struct work_struct		ocp_clear_work;
 	struct qpnp_chg_regulator	otg_vreg;
@@ -522,6 +526,9 @@ struct qpnp_chg_chip {
 	bool				enable_sw_idic_algo;
 	bool				is_sw_idic_detect_4200mv_batt;
 	enum htc_ftm_power_source_type	ftm_src;
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+	int				batt_ovp_irq;
+#endif
 };
 
 struct htc_chg_timer {
@@ -662,7 +669,15 @@ static struct pm8941_charger_data_store charger_store_emmc;
 
 static struct htc_chg_timer aicl_timer, retry_aicl_timer, pb_wa_timer;
 
-/* 1.Disable temp protect. 2.Skip safety timer. 3.keep charging even if full */
+static bool gs_measure_cable_impedance = true;
+static bool gs_stop_eoc_cable_impedance = false;
+static int gs_R_cable_impedance = 0;
+static int gs_cable_impedance = 0;     
+static int gs_aicl_result = 0;
+static int gs_aicl_result_now = 0;
+static int gs_R_HW_MB_Impedance = 0;
+
+
 static bool flag_keep_charge_on;
 /* 1.Disable temp protect. 2.Skip safety timer. */
 static bool flag_pa_recharge;
@@ -670,6 +685,10 @@ static struct qpnp_chg_chip *the_chip;
 static u8 pmic_rev = 0;
 #ifdef CONFIG_HTC_BATT_8960
 enum htc_power_source_type pwr_src;
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+static void check_external_ovp_worker(struct work_struct *work);
+static int start_ovp = 1;
+#endif
 #endif /* !CONFIG_HTC_BATT_8960 */
 
 /* latest ov/uv rt state */
@@ -1039,6 +1058,15 @@ get_prop_usb_valid_status(struct qpnp_chg_chip *chip, int *ov, int *v, int *uv)
 		*ov = true;
 	else
 		*uv = true;
+
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+	if (!gpio_get_value(the_chip->batt_ovp_irq)) {
+		pr_info("v=%d, ov=%d, uv=%d OVP by external OVP irq: ", *v, *ov, *uv);
+		*ov = true;
+		*uv = false;
+	}
+#endif
+
 	pr_debug("chgr usb sts 0x%x\n", usbin_valid_rt_sts);
 	return 0;
 }
@@ -3615,7 +3643,7 @@ aicl_check_worker(struct work_struct *work)
 
 				pr_debug("AICL: finish! usb_target_ma=%d, aicl_worker=%d\n",
 						usb_target_ma, is_aicl_worker_enabled);
-				if (!is_usb_target_ma_changed_by_qc20) { /* Not QC2.0 charger */
+				if (!is_usb_target_ma_changed_by_qc20 && gs_stop_eoc_cable_impedance == false) { /* Not QC2.0 charger */
 					if (the_chip->ext_ovpfet_gpio) { /* Check ovpfet charge */
 						schedule_delayed_work(&the_chip->ovpfet_resistance_check_work,
 							msecs_to_jiffies(OVPFET_R_CHECK_WAIT_MS));
@@ -3955,6 +3983,22 @@ int pm8941_set_pwrsrc_and_charger_enable(enum htc_power_source_type src,
 		return -EINVAL;
 	}
 
+	if (src==2) {
+		if (gs_measure_cable_impedance == true) {
+			gs_measure_cable_impedance = false;
+			gs_stop_eoc_cable_impedance = true;
+			schedule_delayed_work(&the_chip->cable_impedance_work,
+				msecs_to_jiffies(10000));
+		}
+	} else {
+		gs_measure_cable_impedance = true;
+		gs_cable_impedance = 0;
+		gs_R_cable_impedance = 0;
+		gs_aicl_result = 0;
+		gs_stop_eoc_cable_impedance = false;
+		cancel_delayed_work_sync(&the_chip->cable_impedance_work);
+	}
+
 	pr_debug("src=%d, pre_pwr_src=%d, chg_enable=%d, pwrsrc_enable=%d, "
 			"is_vin_min_detected=%d, usb_target_ma=%d, ftm_src=%d\n",
 				src, pre_pwr_src, chg_enable, pwrsrc_enable,
@@ -4068,17 +4112,6 @@ int pm8941_set_pwrsrc_and_charger_enable(enum htc_power_source_type src,
 	pr_debug("qpnp_chg_iusbmax_set=%dmA, pb_wa_ms=%lu, pb_wa_step=%x\n",
 			mA, pb_wa_timer.t_since_last_do_ms, the_chip->power_bank_wa_step);
 	_pm8941_charger_vbus_draw(mA);
-
-	if (the_chip->ext_ovpfet_gpio && HTC_PWR_SOURCE_TYPE_AC == src) {
-		if (delayed_work_pending(&the_chip->ovpfet_resistance_check_work))
-			disable_ovpfet_work(the_chip);
-
-		/* For enable QC2.0/AICL project, check external ovpfet after finishing QC2.0/AICL detect */
-		if (!htc_battery_is_support_qc20() && !the_chip->is_pm8921_aicl_enabled) {
-			schedule_delayed_work(&the_chip->ovpfet_resistance_check_work,
-				msecs_to_jiffies(OVPFET_R_CHECK_WAIT_MS));
-		}
-	}
 
 	if (HTC_PWR_SOURCE_TYPE_BATT == src)
 		handle_usb_present_change(the_chip, 0);
@@ -4294,14 +4327,36 @@ int pm8941_is_batt_temp_fault_disable_chg(int *result)
 
 int pm8941_is_batt_temperature_fault(int *result)
 {
+#ifdef CONFIG_MACH_DUMMY
+	int is_cold = 0, is_hot = 0;
+	int batt_temp_status;
+#else
 	int is_cold = 0, is_warm = 0;
 	int batt_temp_status;
+#endif
 
 	if (!the_chip) {
 		pr_debug("called before init\n");
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_MACH_DUMMY
+        batt_temp_status = get_prop_batt_health(the_chip);
+
+        if (batt_temp_status == POWER_SUPPLY_HEALTH_COLD || the_chip->bat_is_cool)
+		is_cold = 1;
+
+	if (batt_temp_status == POWER_SUPPLY_HEALTH_OVERHEAT)
+		is_hot = 1;
+
+	pr_info("[8928]is_cold=%d,is_hot=%d\n", is_cold, is_hot);
+	if (is_cold || is_hot)
+		*result = 1;
+	else
+		*result = 0;
+	return 0;
+
+#else
 	batt_temp_status = get_prop_batt_health(the_chip);
 
 	if (batt_temp_status == POWER_SUPPLY_HEALTH_COLD || the_chip->bat_is_cool)
@@ -4309,12 +4364,13 @@ int pm8941_is_batt_temperature_fault(int *result)
 
 	is_warm = the_chip->bat_is_warm;
 
-	pr_debug("is_cold=%d,is_warm=%d\n", is_cold, is_warm);
+	pr_info("is_cold=%d,is_warm=%d\n", is_cold, is_warm);
 	if (is_cold || is_warm)
 		*result = 1;
 	else
 		*result = 0;
 	return 0;
+#endif
 }
 
 int pm8941_get_battery_status(void)
@@ -4428,6 +4484,18 @@ int pm8941_get_charging_enabled(int *result)
 		*result = HTC_PWR_SOURCE_TYPE_BATT;
 	return 0;
 }
+
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+static void check_external_ovp_worker(struct work_struct *work)
+{
+	if (gpio_get_value(the_chip->batt_ovp_irq) != start_ovp) {
+		if (delayed_work_pending(&the_chip->update_ovp_uvp_work))
+			cancel_delayed_work(&the_chip->update_ovp_uvp_work);
+		schedule_delayed_work(&the_chip->update_ovp_uvp_work, msecs_to_jiffies(800));
+	}
+	start_ovp = gpio_get_value(the_chip->batt_ovp_irq);
+}
+#endif
 
 static void update_ovp_uvp_state(int ov, int v, int uv)
 {
@@ -5012,12 +5080,22 @@ int pm8941_charger_get_attr_text(char *buf, int size)
 			irq_read_line(the_chip->limit_error.irq),
 			irq_read_line(the_chip->boost_pwr_ok.irq));
 	local_irq_restore(flags);
+	len += scnprintf(buf + len, size -len,
+			"gs_cable_impedance: %d\n"
+			"gs_R_cable_impedance: %d\n"
+			"gs_aicl_result: %d\n"
+			"gs_aicl_result_now: %d\n",
+			gs_cable_impedance, gs_R_cable_impedance, usb_target_ma, gs_aicl_result_now);
 
 	rc = qpnp_vadc_read(the_chip->vadc_dev, USBIN, &result);
 	if (rc) {
 		pr_debug("error reading USBIN channel = %d, rc = %d\n",
 					USBIN, rc);
 	}
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+	len += scnprintf(buf + len, size - len,
+			"GPIO37: %d;\n", gpio_get_value(the_chip->batt_ovp_irq));
+#endif
 	len += scnprintf(buf + len, size - len,
 			"USBIN(uV): %d;\n", (int)result.physical);
 #if defined(CONFIG_MACH_B2_WLJ)
@@ -5114,7 +5192,7 @@ int pm8941_gauge_get_attr_text(char *buf, int size)
 	int len = 0;
 	int soc, ibat_ma;
 	int CHG_fcc_reveal = 0;
-#ifdef CONFIG_MACH_M8
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
 	int id_raw_chg = 0;
 #endif
 	if (!the_chip) {
@@ -5125,7 +5203,7 @@ int pm8941_gauge_get_attr_text(char *buf, int size)
 	pm8941_bms_get_batt_soc(&soc);
 	pm8941_bms_get_batt_current(&ibat_ma);
 
-#ifdef CONFIG_MACH_M8
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
 	id_raw_chg = ((int)read_battery_id(the_chip))/1000 ;
 	if((201 <= id_raw_chg && id_raw_chg <= 330) || (451 <= id_raw_chg && id_raw_chg <= 650)){
 		CHG_fcc_reveal = 2600000;
@@ -6390,9 +6468,200 @@ hv_batt:
 	return;
 }
 
+int pm8941_is_bad_cable_used(int *result)
+{
+	int usbtype = -1;
+	*result = 0;
+
+	if(!the_chip) {
+		pr_err("called before init\n");
+		return -EINVAL;
+	}
+
+	usbtype = htc_battery_check_cable_type_from_usb();
+
+	if (	(get_prop_charge_type(the_chip) == POWER_SUPPLY_CHARGE_TYPE_FAST) &&
+		(get_prop_batt_health(the_chip) == POWER_SUPPLY_HEALTH_GOOD) &&
+		(usbtype == DWC3_DCP) &&
+		(gs_cable_impedance == 3)	)
+		*result = 1;
+
+	return 0;
+}
+
+static
+int get_vusb_averaged(struct qpnp_chg_chip *chip, int sample_count)
+{
+        int vusb_uv = 0;
+        int i;
+
+        
+        if (sample_count > 256)
+                sample_count = 256;
+
+        for (i = 0; i < sample_count; i++)
+                vusb_uv += qpnp_chg_get_vusbin_uv(chip);
+
+        vusb_uv = vusb_uv / sample_count;
+        return vusb_uv;
+}
+#define IUSB_MAX_CURRENT_MA 1000
+static void
+cable_impedance_worker(struct work_struct *work)
+{
+	int stored_usb_max_current_ma = 0;
+	static int vbat_mv_actual, vbat_mv_1, vbat_mv_2, vbat_mv_3, aicl_result;
+	int iusb_ma_set1 = 500, iusb_ma_set2 = 300, iusb_ma_set3 = 150;
+	int iusb1, iusb2, iusb3;
+	int usbtype = -1;
+	int soc = 0;
+	
+	gs_R_HW_MB_Impedance = 200;
+
+	if (!the_chip){
+		pr_err("[Cable impedance]called before the_chip initialized\n");
+		gs_stop_eoc_cable_impedance = false;
+		return;
+	}
+
+	if (gs_R_HW_MB_Impedance == -EINVAL) {
+		pr_info("[Cable impedance]gs_R_HW_MB_Impedance missing, ignore detection.");
+		goto endWorker;
+	}
+
+	pr_info("[Cable impedance] Waiting for AICL to complete!\n");
+	gs_cable_impedance = 4;
+
+	
+	while(is_aicl_worker_enabled){
+		msleep(100);
+	}
+	pr_info("[Cable impedance]Start to calculate cable impedance!\n");
+
+
+	aicl_result = usb_target_ma;
+	gs_aicl_result = aicl_result;
+	stored_usb_max_current_ma = IUSB_MAX_CURRENT_MA;
+	pm8941_bms_get_batt_soc(&soc);
+
+	usbtype = htc_battery_check_cable_type_from_usb();
+	if ((get_prop_charge_type(the_chip) != POWER_SUPPLY_CHARGE_TYPE_FAST) || (usbtype != DWC3_DCP) ||
+			((get_prop_batt_health(the_chip) != POWER_SUPPLY_HEALTH_GOOD) || (aicl_result > 700) || (soc > 75))) {
+		pr_info("[Cable impedance]Ignore detection. aicl=%dmA, chg_type=%d, batt_temp=%d\n",
+			aicl_result, get_prop_charge_type(the_chip), get_prop_batt_temp(the_chip));
+		gs_cable_impedance = 1;
+		goto endWorker;
+	}
+
+	
+	qpnp_chg_iusbmax_set(the_chip, 500);
+	msleep(3000);
+	vbat_mv_actual = get_vusb_averaged(the_chip, 3);
+	vbat_mv_actual = vbat_mv_actual/1000;
+	pr_info("[Cable impedance] Vbus(%d) detected\n",vbat_mv_actual);
+	if( vbat_mv_actual < 4450){
+		iusb_ma_set1 = 300;
+		iusb_ma_set2 = 200;
+		iusb_ma_set3 = 150;
+		pr_info("[Cable impedance]Low Vbus(%d) detected. Using current setting 200, 150, 100\n",vbat_mv_actual);
+	}
+
+	
+	if (the_chip->ext_ovpfet_gpio) {
+			if (delayed_work_pending(&the_chip->ovpfet_resistance_check_work))
+				disable_ovpfet_work(the_chip);
+	}
+
+	
+
+	
+	{
+		qpnp_chg_iusbmax_set(the_chip, iusb_ma_set1);
+	}
+	msleep(3000);
+	usbtype = htc_battery_check_cable_type_from_usb();
+	if (usbtype != DWC3_DCP) {
+		pr_info("[Cable impedance]Not correct charger source, ignore detection.!\n");
+		gs_cable_impedance = 1;
+		goto endWorker;
+	}
+	vbat_mv_1 = get_vusb_averaged(the_chip, 3);
+	vbat_mv_1 = vbat_mv_1/1000;
+
+	iusb1 = qpnp_chg_usb_iusbmax_get(the_chip);
+	pr_info("[Cable impedance] Iusb=%dmA(%d), Vusb1=%d\n",iusb_ma_set1,iusb1,vbat_mv_1);
+
+	
+	{
+		qpnp_chg_iusbmax_set(the_chip, iusb_ma_set2);
+	}
+	msleep(3000);
+	usbtype = htc_battery_check_cable_type_from_usb();
+	if (usbtype != DWC3_DCP) {
+		pr_info("[Cable impedance]Not correct charger source, ignore detection.!\n");
+		gs_cable_impedance = 1;
+		goto endWorker;
+	}
+
+	vbat_mv_2 = get_vusb_averaged(the_chip, 3);
+	vbat_mv_2 = vbat_mv_2/1000;
+	iusb2 = qpnp_chg_usb_iusbmax_get(the_chip);
+	pr_info("[Cable impedance] Iusb=%dmA(%d), Vusb2=%d\n",iusb_ma_set2, iusb2,vbat_mv_2);
+
+	
+	{
+		qpnp_chg_iusbmax_set(the_chip, iusb_ma_set3);
+	}
+	msleep(3000);
+	usbtype = htc_battery_check_cable_type_from_usb();
+	if (usbtype != DWC3_DCP) {
+		pr_info("[Cable impedance]Not correct charger source, ignore detection.!\n");
+		gs_cable_impedance = 1;
+		goto endWorker;
+	}
+
+	vbat_mv_3 = get_vusb_averaged(the_chip, 3);
+	vbat_mv_3 = vbat_mv_3/1000;
+	iusb3 = qpnp_chg_usb_iusbmax_get(the_chip);
+	pr_info("[Cable impedance] Iusb=%dmA(%d),Vusb3=%d\n",iusb_ma_set3,iusb3,vbat_mv_3);
+
+	pr_info("[Cable impedance] R1=%d, R2=%d, Vusb1=%d, Vusb2=%d, Vusb3=%d, AICL=%d\n",
+				((vbat_mv_3 - vbat_mv_1)*1000/(iusb1 - iusb3))-gs_R_HW_MB_Impedance,
+				((vbat_mv_3 - vbat_mv_2)*1000/(iusb2 - iusb3))-gs_R_HW_MB_Impedance,
+				vbat_mv_1,vbat_mv_2,vbat_mv_3,aicl_result);
+
+	gs_R_cable_impedance = ( (((vbat_mv_3 - vbat_mv_1)*1000/(iusb1 - iusb3))-gs_R_HW_MB_Impedance)
+				+ (((vbat_mv_3 - vbat_mv_2)*1000/(iusb2 - iusb3))-gs_R_HW_MB_Impedance) )/2;
+
+	pr_info("[Cable impedance] R=%d\n", gs_R_cable_impedance);
+
+	if (gs_R_cable_impedance >= 1000)
+		gs_cable_impedance = 3;
+	else if (gs_R_cable_impedance < 1000 && gs_R_cable_impedance >= 600)
+		gs_cable_impedance = 2;
+	else
+		gs_cable_impedance = 1;
+
+	
+	qpnp_chg_iusbmax_set(the_chip, stored_usb_max_current_ma);
+	
+	gs_measure_cable_impedance = false;
+
+endWorker:
+	
+     if (!htc_battery_is_support_qc20() && !the_chip->is_pm8921_aicl_enabled) {
+				schedule_delayed_work(&the_chip->ovpfet_resistance_check_work,
+					msecs_to_jiffies(OVPFET_R_CHECK_WAIT_MS));
+	}
+
+	gs_stop_eoc_cable_impedance = false;
+	pr_info("[Cable impedance]End.\n");
+}
+
+
 #define CONSECUTIVE_COUNT	3
 #define VBATDET_MAX_ERR_MV	50
-#define CLEAR_FULL_STATE_BY_LEVEL_THR		90
+#define CLEAR_FULL_STATE_BY_LEVEL_THR		97
 static void
 qpnp_eoc_work(struct work_struct *work)
 {
@@ -6401,6 +6670,10 @@ qpnp_eoc_work(struct work_struct *work)
 				struct qpnp_chg_chip, eoc_work);
 	int ibat_ma, vbat_mv, rc = 0, soc = 0;
 	u8 batt_sts = 0, buck_sts = 0, chg_sts = 0;
+
+	if (gs_stop_eoc_cable_impedance==true)
+		goto end;
+
 #if !(defined(CONFIG_HTC_BATT_8960))
 	static int vbat_low_count;
 	bool vbat_lower_than_vbatdet;
@@ -6608,6 +6881,8 @@ qpnp_eoc_work(struct work_struct *work)
 #if !(defined(CONFIG_HTC_BATT_8960))
 check_again_later:
 #endif
+end:
+
 	schedule_delayed_work(&chip->eoc_work,
 		msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
 	return;
@@ -6929,24 +7204,6 @@ qpnp_chg_get_vusbin_uv(struct qpnp_chg_chip *chip)
 	return results.physical;
 }
 
-
-static
-int get_vusb_averaged(struct qpnp_chg_chip *chip, int sample_count)
-{
-	int vusb_uv = 0;
-	int i;
-
-	/* avoid  overflows */
-	if (sample_count > 256)
-		sample_count = 256;
-
-	for (i = 0; i < sample_count; i++)
-		vusb_uv += qpnp_chg_get_vusbin_uv(chip);
-
-	vusb_uv = vusb_uv / sample_count;
-	return vusb_uv;
-}
-
 static
 int get_vbat_averaged(struct qpnp_chg_chip *chip, int sample_count)
 {
@@ -7131,6 +7388,20 @@ qpnp_chg_setup_flags(struct qpnp_chg_chip *chip)
 	}
 	return 0;
 }
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+static irqreturn_t batt_ovp_irq_handler(int irq, void *dev_id)
+{
+	int ovp_now = gpio_get_value(the_chip->batt_ovp_irq);
+	pr_info("Status = %d -> %d\n", start_ovp, ovp_now);
+	if (start_ovp == ovp_now)
+		goto endOVP;
+	if (!delayed_work_pending(&the_chip->check_external_ovp_work))
+		schedule_delayed_work(&the_chip->check_external_ovp_work, msecs_to_jiffies(200));
+
+endOVP:
+	return IRQ_HANDLED;
+}
+#endif
 
 static int
 qpnp_chg_request_irqs(struct qpnp_chg_chip *chip)
@@ -8141,6 +8412,9 @@ qpnp_charger_probe(struct spmi_device *spmi)
 	struct qpnp_chg_chip	*chip;
 	struct resource *resource;
 	struct spmi_resource *spmi_resource;
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+	int irq;
+#endif
 	int rc = 0;
 
 	chip = devm_kzalloc(&spmi->dev,
@@ -8402,10 +8676,14 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		INIT_WORK(&chip->adc_disable_work,
 			qpnp_bat_if_adc_disable_work);
 	}
+#endif 
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+	INIT_DELAYED_WORK(&chip->check_external_ovp_work, check_external_ovp_worker);
 #endif /* !CONFIG_HTC_BATT_8960 */
 	INIT_DELAYED_WORK(&chip->fix_reverse_boost_check_work,
 		qpnp_fix_reverse_boost_check_work);
 	INIT_DELAYED_WORK(&chip->eoc_work, qpnp_eoc_work);
+	INIT_DELAYED_WORK(&chip->cable_impedance_work, cable_impedance_worker);
 
 	INIT_DELAYED_WORK(&chip->arb_stop_work, qpnp_arb_stop_work);
 
@@ -8537,6 +8815,34 @@ qpnp_charger_probe(struct spmi_device *spmi)
 		msecs_to_jiffies(EOC_CHECK_PERIOD_MS));
 #endif
 
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+	chip->batt_ovp_irq = of_get_named_gpio(chip->spmi->dev.of_node, "htc,batt-gpio-ovp", 0);
+
+	
+	if (gpio_is_valid(chip->batt_ovp_irq)) {
+		irq = gpio_to_irq(chip->batt_ovp_irq);
+		if (irq < 0) {
+			dev_err(&spmi->dev, "Invalid Batt_OVP_irq irq = %d\n", irq);
+			goto fail_batt_irq_gpio;
+		}
+
+		rc = devm_request_threaded_irq(chip->dev, irq,
+				batt_ovp_irq_handler, NULL,
+				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+				"batt_ovp_irq", chip);
+		if (rc) {
+			dev_err(&spmi->dev, "Failed BATT OVP irq= %d request rc = %d\n", irq, rc);
+			goto fail_batt_irq_gpio;
+		}
+
+		enable_irq_wake(irq);
+	} else {
+		goto fail_batt_irq_gpio;
+	}
+	start_ovp = gpio_get_value(chip->batt_ovp_irq);
+	pr_info("external OVP irq init value:%d\n", start_ovp);
+#endif
+
 	pr_debug("success chg_dis=%d,bpd=%d,usb=%d,dc=%d,b_health=%d,batt_present=%d,"
 			"stored_pre_delta_vddmax=%d,magic_num:0x%X\n",
 			chip->charging_disabled,
@@ -8556,8 +8862,13 @@ unregister_dc_psy:
 unregister_batt:
 	if (chip->bat_if_base)
 		power_supply_unregister(&chip->batt_psy);
+#endif 
+#if defined(CONFIG_HTC_BATT_GPIO_OVP)
+fail_batt_irq_gpio:
+	pr_info("gpio37_fail\n");
+        if (gpio_is_valid(chip->batt_ovp_irq))
+                gpio_free(chip->batt_ovp_irq);
 #endif /* !CONFIG_HTC_BATT_8960 */
-
 fail_chg_enable:
 	pr_warn("pm8941 charger init failed\n");
 	regulator_unregister(chip->otg_vreg.rdev);

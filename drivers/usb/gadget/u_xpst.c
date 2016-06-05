@@ -1275,9 +1275,9 @@ static ssize_t diag2arm9_read(struct file *fp, char __user *buf,
 retry:
 		/* get data from done queue */
 		req = 0;
-		ret = wait_event_interruptible_timeout(ctxt->read_arm9_wq,
+		ret = wait_event_interruptible(ctxt->read_arm9_wq,
 				((req = xpst_req_get(ctxt, &ctxt->rx_arm9_done)) ||
-				 !ctxt->diag2arm9_opened), 2 * HZ);
+				 !ctxt->diag2arm9_opened));
 		if (!ctxt->diag2arm9_opened) {
 			if (req)
 				xpst_req_put(ctxt, &ctxt->rx_arm9_idle, req);

@@ -78,6 +78,7 @@ obj-$(CONFIG_QPNP_VIBRATOR) += qpnp-vibrator.o
 obj-$(CONFIG_CABLE_DETECT_8XXX) += cable_detect_8xxx.o
 obj-y += time_helper.o
 obj-$(CONFIG_QPNP_VIBRATOR_PWM) += qpnp-vibrator-pwm.o
+obj-$(CONFIG_INPUT_DRV260X_HAPTICS) += vib_drv2604.o
 obj-$(CONFIG_UID_CPUTIME) 	+= uid_cputime.o
 obj-$(CONFIG_HPH_HIGHPERF) += sound_control.o
 obj-$(CONFIG_BLX) += blx.o

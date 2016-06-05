@@ -1446,10 +1446,12 @@ static int mmc_blk_issue_flush(struct mmc_queue *mq, struct request *req)
 		blk_requeue_request(q, req);
 		spin_unlock_irq(q->queue_lock);
 #endif
-		mmc_reinit_card(card->host);
-		pr_err("%s: %s: notify flush error to upper layers",
-				req->rq_disk->disk_name, __func__);
-		ret = -EIO;
+		ret = mmc_reinit_card(card->host);
+		if (ret) {
+			pr_err("%s: %s: notify flush error to upper layers",
+					req->rq_disk->disk_name, __func__);
+			ret = -EIO;
+		}
 	}
 
 	blk_end_request_all(req, ret);
@@ -3305,6 +3307,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
 	char cap_str[10];
+	int resume_flag_retry = 3;
 
 	if (!(card->csd.cmdclass & CCC_BLOCK_READ))
 		return -ENODEV;
@@ -3336,7 +3339,21 @@ static int mmc_blk_probe(struct mmc_card *card)
 #endif
 
 	
-	mmc_set_bus_resume_policy(card->host, 1);
+	while (resume_flag_retry) {
+		mmc_set_bus_resume_policy(card->host, 1);
+		if (!mmc_bus_manual_resume(card->host)) {
+			resume_flag_retry--;
+		} else {
+			pr_info("%s: deferred resume is enable\n",
+				mmc_hostname(card->host));
+			break;
+		}
+	}
+	if (resume_flag_retry == 0) {
+		pr_err("%s: deferred resume is not enable after retries\n",
+				mmc_hostname(card->host));
+		BUG_ON(!mmc_bus_manual_resume(card->host));
+	}
 	if (mmc_add_disk(md))
 		goto out;
 

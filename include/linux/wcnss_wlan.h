@@ -15,6 +15,7 @@
 #define _WCNSS_WLAN_H_
 
 #include <linux/device.h>
+#include <linux/sched.h>
 
 enum wcnss_opcode {
 	WCNSS_WLAN_SWITCH_OFF = 0,
@@ -94,6 +95,7 @@ int wcnss_wlan_iris_xo_mode(void);
 void wcnss_flush_work(struct work_struct *work);
 void wcnss_flush_delayed_work(struct delayed_work *dwork);
 int wcnss_get_iris_name(char *iris_version);
+void wcnss_dump_stack(struct task_struct *task);
 
 #ifdef CONFIG_WCNSS_REGISTER_DUMP_ON_BITE
 void wcnss_log_debug_regs_on_bite(void);
@@ -109,8 +111,7 @@ int wcnss_get_wlan_unsafe_channel(
 				u16 *ch_count);
 #define wcnss_wlan_get_drvdata(dev) dev_get_drvdata(dev)
 #define wcnss_wlan_set_drvdata(dev, data) dev_set_drvdata((dev), (data))
-/* WLAN driver uses these names */
 #define req_riva_power_on_lock(name) wcnss_req_power_on_lock(name)
 #define free_riva_power_on_lock(name) wcnss_free_power_on_lock(name)
 
-#endif /* _WCNSS_WLAN_H_ */
+#endif 

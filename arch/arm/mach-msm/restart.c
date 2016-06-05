@@ -311,7 +311,7 @@ static int set_reset_reason(unsigned int reason)
 		printk(KERN_ERR "Unknonwn partition number for misc partition\n");
 		return -1;
 	}
-	sprintf(filename, "%s%d", MISC_DEV_PREFIX, pnum);
+	snprintf(filename, sizeof(filename), "%s%d", MISC_DEV_PREFIX, pnum);
 
 	filp = filp_open(filename, O_RDWR, 0);
 	if (IS_ERR(filp) || (!filp)) {
@@ -558,6 +558,8 @@ static void msm_restart_prepare(char mode, const char *cmd)
 			set_restart_action(RESTART_REASON_ERASE_EFS, NULL);
 		else
 			set_restart_action(RESTART_REASON_RAMDUMP, cmd);
+	} else if (!strncmp(cmd, "dm-verity device corrupted", 26)) {
+			set_restart_action(RESTART_REASON_LOGGING, cmd);
 	} else {
 		set_restart_action(RESTART_REASON_REBOOT, NULL);
 	}

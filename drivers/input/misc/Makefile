@@ -68,5 +68,6 @@ obj-$(CONFIG_HIMAX_PROXIMITY)           += psensor_himax.o
 obj-$(CONFIG_SENSORS_MMA8X5X)	  	+= mma8x5x.o
 obj-$(CONFIG_SENSORS_STK3X1X)		+= stk3x1x.o
 obj-$(CONFIG_AK8789_HALLSENSOR)		+= hall_sensor.o
+obj-$(CONFIG_AK8789_HALLSENSOR_R2)	+= hall_sensor_r2.o hall_sensor_notify_r2.o
 obj-$(CONFIG_SENSORS_CAPELLA_CM36283)	+= cm36283.o
 obj-$(CONFIG_INPUT_DUMMY_KEYPAD)        += dummy_keypad.o

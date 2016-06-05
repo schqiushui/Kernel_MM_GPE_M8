@@ -1916,6 +1916,9 @@ static long kgsl_ioctl_rb_issueibcmds(struct kgsl_device_private *dev_priv,
 		goto done;
 	}
 
+	if (!cmdbatch)
+		goto done;
+
 	
 	if (!_kgsl_cmdbatch_verify(dev_priv, cmdbatch))
 		goto free_cmdbatch;

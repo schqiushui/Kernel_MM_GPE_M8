@@ -84,7 +84,7 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 #ifdef CONFIG_HTC_FLASHLIGHT_COMMON
 	if(htc_torch_main)
 	{
-		htc_torch_main(50, 50);
+		htc_torch_main(125, 125);
 	}
 	else
 		pr_err("[CAM][FL] msm_led_trigger_config, flashlight control is NULL\n");

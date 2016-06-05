@@ -60,6 +60,9 @@ int board_get_usb_ats(void);
 #include "epautoconf.c"
 #include "composite.c"
 
+#ifdef CONFIG_SND_RAWMIDI
+#include "f_midi.c"
+#endif
 #include "f_diag.c"
 #include "f_qdss.c"
 #include "f_rmnet_smd.c"
@@ -70,7 +73,6 @@ int board_get_usb_ats(void);
 #ifdef CONFIG_SND_PCM
 #include "f_audio_source.c"
 #endif
-#include "f_midi.c"
 #include "f_charger.c"
 #include "f_mass_storage.c"
 #include "u_serial.c"
@@ -133,7 +135,7 @@ static bool connect2pc;
 #define ANDROID_DEVICE_NODE_NAME_LENGTH 11
 #define MIDI_INPUT_PORTS    1
 #define MIDI_OUTPUT_PORTS   1
-#define MIDI_BUFFER_SIZE    256
+#define MIDI_BUFFER_SIZE    1024
 #define MIDI_QUEUE_LENGTH   32
 
 struct android_usb_function {
@@ -419,10 +421,6 @@ static void android_work(struct work_struct *data)
 			pr_info("%s: sent missed DISCONNECT event\n", __func__);
 			kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE,
 								disconnected);
-			msleep(20);
-			pr_info("%s: sent CONNECT event\n", __func__);
-			kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE,
-					connected);
 			msleep(20);
 		}
 		if (uevent_envp == configured)
@@ -2239,7 +2237,8 @@ static ssize_t audio_source_pcm_show(struct device *dev,
 	struct audio_source_config *config = f->config;
 
 	
-	return sprintf(buf, "%d %d\n", config->card, config->device);
+	return snprintf(buf, PAGE_SIZE,
+			"%d %d\n", config->card, config->device);
 }
 
 static DEVICE_ATTR(pcm, S_IRUGO | S_IWUSR, audio_source_pcm_show, NULL);
@@ -2634,7 +2633,7 @@ struct android_usb_function projector2_function = {
 	.attributes = projector2_function_attributes
 };
 
-
+#ifdef CONFIG_SND_RAWMIDI
 static int midi_function_init(struct android_usb_function *f,
 					struct usb_composite_dev *cdev)
 {
@@ -2688,7 +2687,7 @@ static struct android_usb_function midi_function = {
 	.bind_config	= midi_function_bind_config,
 	.attributes	= midi_function_attributes,
 };
-
+#endif
 static struct android_usb_function *supported_functions[] = {
 	&rndis_function,
 	&rndis_qc_function,
@@ -2699,7 +2698,9 @@ static struct android_usb_function *supported_functions[] = {
 	&mtp_function,
 	&ptp_function,
 	&ncm_function,
+#ifdef CONFIG_SND_RAWMIDI
 	&midi_function,
+#endif
 	&charger_function,
 
 	&adb_function,

@@ -25,23 +25,28 @@
 #include "pn548_mfg.h"
 #include "pn548_htc.h"
 int mfc_nfc_cmd_result = 0;
+int i2c_error_retry = 0;
 
 static   unsigned long watchdog_counter;
 static   unsigned int watchdogEn;
 static   unsigned int watchdog_timeout;
 #define WATCHDOG_FTM_TIMEOUT_SEC 20
 
-#define A16DWG_REGULATOR
-
-#ifdef A16DWG_REGULATOR
-static  struct regulator *twl80125_ldo4;
-#endif
-
 int is_debug = 0;
 int is_debug_en = 0;
 int s_wdcmd_cnt = 0;
 int is_alive = 1;
 int is_uicc_swp = 1;
+
+#define SW_ENABLE_OFFMODECHARGING
+#ifdef SW_ENABLE_OFFMODECHARGING
+uint8_t CORE_RESET[] = {0x20, 0x00, 0x01, 0x00};
+uint8_t CORE_INIT[] = {0x20,0x01,0x00};
+uint8_t NFCEE_MODE_SET[] = {0x22,0x01,0x02,0x02,0x01};
+uint8_t RF_DISCOVER[] = {0x21,0x03,0x07,0x03,0x80,0x01,0x81,0x01,0x82,0x01};
+struct workqueue_struct *nfc_wq;
+struct delayed_work nfc_work;
+#endif
 
 #define DBUF(buff,count) \
 	if (is_debug) \
@@ -57,7 +62,8 @@ int is_uicc_swp = 1;
 
 #define MAX_BUFFER_SIZE	512
 
-#define I2C_RETRY_COUNT 10
+#define NFC_I2C_RETRY 5
+#define NFC_I2C_RETRY_ERROR_COUNT 5
 
 struct pn544_dev	{
 	struct class		*pn544_class;
@@ -105,23 +111,28 @@ static int pn544_RxData(uint8_t *rxData, int length)
 
 	rxData[0] = 0;
 
-	for (loop_i = 0; loop_i < I2C_RETRY_COUNT; loop_i++) {
+	for (loop_i = 0; loop_i < NFC_I2C_RETRY; loop_i++) {
 		D("%s: retry %d ........\n", __func__, loop_i);
 		if (i2c_transfer(pni->client->adapter, msg, 1) > 0)
 			break;
-
 		mdelay(10);
 	}
 
-	if (loop_i >= I2C_RETRY_COUNT) {
-		E("%s Error: retry over %d\n", __func__,
-			I2C_RETRY_COUNT);
-#ifdef A16DWG_REGULATOR
-		E("%s : twl80125_ldo4 workaround regulator_is_enabled = %d\n", __func__, regulator_is_enabled(twl80125_ldo4));
-#endif
+	if (loop_i >= NFC_I2C_RETRY) {
+		E("%s Error in i2c read: retry over %d error_count = %d\n", __func__,
+			NFC_I2C_RETRY,i2c_error_retry);
+		if (i2c_error_retry > NFC_I2C_RETRY_ERROR_COUNT) {
+			E("%s Error: retry over %d\n", __func__,
+			NFC_I2C_RETRY_ERROR_COUNT);
+			i2c_error_retry = 0;
+			pn548_htc_regulator_status();
+			return -EIO;
+		}
+		i2c_error_retry++;
 		return -EIO;
 	}
-
+	mdelay(1);
+	i2c_error_retry = 0;
 	return 0;
 }
 
@@ -142,7 +153,7 @@ static int pn544_TxData(uint8_t *txData, int length)
 		msg[0].addr, msg[0].flags, msg[0].len);
 
 
-	for (loop_i = 0; loop_i < I2C_RETRY_COUNT; loop_i++) {
+	for (loop_i = 0; loop_i < NFC_I2C_RETRY; loop_i++) {
 		D("%s: retry %d ........\n", __func__, loop_i);
 		if (i2c_transfer(pni->client->adapter, msg, 1) > 0)
 			break;
@@ -150,15 +161,21 @@ static int pn544_TxData(uint8_t *txData, int length)
 		msleep(10);
 	}
 
-	if (loop_i >= I2C_RETRY_COUNT) {
-		E("%s:  Error: retry over %d\n",
-			__func__, I2C_RETRY_COUNT);
-#ifdef A16DWG_REGULATOR
-		E("%s : twl80125_ldo4 workaround regulator_is_enabled = %d\n", __func__, regulator_is_enabled(twl80125_ldo4));
-#endif
+	if (loop_i >= NFC_I2C_RETRY) {
+		E("%s Error in i2c write: retry over %d error_count = %d\n", __func__,
+			NFC_I2C_RETRY,i2c_error_retry);
+		if (i2c_error_retry > NFC_I2C_RETRY_ERROR_COUNT) {
+			E("%s Error: retry over %d\n", __func__,
+			NFC_I2C_RETRY_ERROR_COUNT);
+			i2c_error_retry = 0;
+			pn548_htc_regulator_status();
+			return -EIO;
+		}
+		i2c_error_retry++;
 		return -EIO;
 	}
-
+	mdelay(1);
+	i2c_error_retry = 0;
 	return 0;
 }
 
@@ -377,27 +394,28 @@ static long pn544_dev_ioctl(struct file *filp,
 		} else if (arg == 2) {
 			I("%s power on with firmware\n", __func__);
 			pn544_Enable();
+			msleep(20);
 			gpio_set_value(pni->firm_gpio, 1);
-			msleep(50);
+			msleep(20);
 			pn544_Disable();
-			msleep(50);
+			msleep(100);
 			pn544_Enable();
-			msleep(50);
+			msleep(20);
 		} else if (arg == 1) {
 			
-			I("%s power on (delay50)\n", __func__);
+			I("%s power on delay 100ms\n", __func__);
 			gpio_set_value(pni->firm_gpio, 0);
 			pn544_Enable();
-			msleep(50);
+			msleep(100);
 			is_debug = 1;
 			s_wdcmd_cnt = 0;
 			I("%s pn544_Enable, set is_debug = %d, s_wdcmd_cnt : %d\n", __func__, is_debug, s_wdcmd_cnt);
 		} else  if (arg == 0) {
 			
-			I("%s power off (delay50)\n", __func__);
+			I("%s power off delay 100ms\n", __func__);
 			gpio_set_value(pni->firm_gpio, 0);
 			pn544_Disable();
-			msleep(50);
+			msleep(100);
 			is_debug = is_debug_en;
 			I("%s pn544_Disable, set is_debug = %d, s_wdcmd_cnt = %d\n", __func__, is_debug, s_wdcmd_cnt);
 		} else {
@@ -989,10 +1007,60 @@ static ssize_t mfg_nfc_ctrl_show(struct device *dev,
 	return ret;
 }
 
+#ifdef SW_ENABLE_OFFMODECHARGING
+static void pn544_process_irq(struct work_struct *work) {
+	struct pn544_dev *pni = pn_info;
+	char nci_read_header[2] = {0};
+	uint8_t receiverBuffer[MAX_NFC_DATA_SIZE] ={0};
+	unsigned char nci_data_len = 0;
+	int ret;
+	while(1) {
+		mutex_lock(&pni->read_mutex);
+		if (!gpio_get_value(pni->irq_gpio)) {
+			pni->irq_enabled = true;
+			enable_irq(pni->client->irq);
+			D("%s: waiting read-event INT, because "
+				"irq_gpio = 0\n", __func__);
+			pni->isReadBlock = true;
+			ret = wait_event_interruptible(pni->read_wq,
+				gpio_get_value(pni->irq_gpio));
+			pn544_disable_irq(pni);
+			D("%s : wait_event_interruptible done\n", __func__);
+			if (ret) {
+				I("pn544_dev_read wait_event_interruptible breaked ret=%d\n", ret);
+			}
+		}
+		pni->isReadBlock = false;
+		wake_lock_timeout(&pni ->io_wake_lock, IO_WAKE_LOCK_TIMEOUT);
+		mutex_unlock(&pni->read_mutex);
+		if ( pn544_RxData(nci_read_header, 2) < 0) {
+			E("I2C error while read out the NCI header.\r\n");
+			break;
+		} else {
+			I("1. [R] NCI header read: 0x%02X, 0x%02X\r\n", nci_read_header[0], nci_read_header[1]);
+			mdelay(NFC_READ_DELAY);
+			if ( pn544_RxData(&nci_data_len, 1) < 0) {
+				E("I2C error while read out the NCI data length.\r\n");
+				break;
+			} else {
+				I("2. [R] NCI data length read: %d\r\n", (int)nci_data_len);
+				mdelay(NFC_READ_DELAY);
+				if ( pn544_RxData(receiverBuffer, nci_data_len) < 0) {
+					E("I2C error while read out the NCI data.\r\n");
+					break;
+				} else {
+					I("3. [R] NCI data: ");
+					nfc_nci_dump_data(receiverBuffer, (int)nci_data_len);
+				}
+			}
+		}
+	}
+}
+#endif
+
 
 static int mfg_nfc_test(int code)
 {
-
 	gDevice_info.NTF_count = 0;
 	memset(gDevice_info.NTF_queue, 0x00, sizeof(gDevice_info.NTF_queue));
 	gDevice_info.protocol_set = 4;
@@ -1032,9 +1100,31 @@ static int mfg_nfc_test(int code)
 		break;
 #if FTM_NFC_CPLC
 #endif  
+        case 88:
+#ifdef SW_ENABLE_OFFMODECHARGING
+			pn544_hw_reset_control(1);
+			INIT_DELAYED_WORK(&nfc_work, pn544_process_irq);
+			nfc_wq = create_singlethread_workqueue("htc_nfc");
+			queue_delayed_work(nfc_wq, &nfc_work, 0);
+			mdelay(1);
+			if(pn544_TxData(CORE_RESET,4) < 0)
+				E("%s: CORE_RESET_CMD fail",__func__);
+			mdelay(NFC_READ_DELAY);
+			if(pn544_TxData(CORE_INIT,3) < 0)
+				E("%s: CORE_INIT_CMD fail",__func__);
+			mdelay(NFC_READ_DELAY);
+			if(pn544_TxData(NFCEE_MODE_SET,5) < 0)
+				E("%s: NFCEE_MODE_SET_CMD fail",__func__);
+			mdelay(NFC_READ_DELAY);
+			if(pn544_TxData(RF_DISCOVER,10)<0)
+				E("%s: RF_DISCOVERY_CMD fail",__func__);
+			mdelay(NFC_READ_DELAY);
+			I("%s:off_mode_charging complete!!",__func__);
+#endif
+                        break;
 	case 99:
 		I("Turn off NFC_PVDD");
-
+		pn548_htc_turn_off_pvdd();
 		break;
 	default:
 		E("%s: case default do nothing\n", __func__);
@@ -1152,7 +1242,7 @@ static int pn544_parse_dt(struct device *dev, struct pn544_i2c_platform_data *pd
 {
 	struct property *prop;
 	struct device_node *dt = dev->of_node;
-	pn548_htc_parse_dt(dev);
+	bool ret;
 	I("%s: Start\n", __func__);
 
 	prop = of_find_property(dt, "nxp,ven_isinvert", NULL);
@@ -1175,17 +1265,21 @@ static int pn544_parse_dt(struct device *dev, struct pn544_i2c_platform_data *pd
 	
 	pdata->irq_gpio = of_get_named_gpio_flags(dt, "nxp,irq-gpio",
 				0, &pdata->irq_gpio_flags);
-	if(pdata->irq_gpio < 0) {
+	if(!gpio_is_valid(pdata->irq_gpio)) {
 		goto parse_error;
 	}
 	pdata->ven_gpio = of_get_named_gpio_flags(dt, "nxp,ven-gpio",
 				0, &pdata->ven_gpio_flags);
-	if(pdata->ven_gpio < 0) {
+	if(!gpio_is_valid(pdata->ven_gpio)) {
 		goto parse_error;
 	}
 	pdata->firm_gpio = of_get_named_gpio_flags(dt, "nxp,fwdl-gpio",
 				0, &pdata->firm_gpio_flags);
-	if(pdata->firm_gpio < 0) {
+	if(!gpio_is_valid(pdata->firm_gpio)) {
+		goto parse_error;
+	}
+	ret = pn548_htc_parse_dt(dev);
+	if(!ret) {
 		goto parse_error;
 	}
 
@@ -1209,28 +1303,6 @@ static int pn544_probe(struct i2c_client *client,
 		return  -ENODEV;
 	}
 
-#ifdef A16DWG_REGULATOR
-	twl80125_ldo4 = regulator_get(&client->dev, "twl80125_ldo4");
-	I("%s : twl80125_ldo4 workaround regulator_get\n", __func__);
-	if (twl80125_ldo4< 0) {
-		E("%s : twl80125_ldo4 workaround regulator_get fail\n", __func__);
-		return -ENODEV;
-	}
-	ret = regulator_set_voltage(twl80125_ldo4, 1800000, 1800000);
-	I("%s : twl80125_ldo4 workaround regulator_set_voltage\n", __func__);
-	if (ret < 0) {
-		E("%s : twl80125_ldo4 workaround regulator_set_voltage fail\n", __func__);
-		return -ENODEV;
-	}
-	ret = regulator_enable(twl80125_ldo4);
-	I("%s : twl80125_ldo4 workaround regulator_enable\n", __func__);
-	I("%s : twl80125_ldo4 workaround regulator_is_enabled = %d\n", __func__, regulator_is_enabled(twl80125_ldo4));
-	if (ret < 0) {
-		E("%s : twl80125_ldo4 workaround regulator_enable fail\n", __func__);
-		return -ENODEV;
-	}
-#endif
-
 	if (client->dev.of_node) {
 		 platform_data = kzalloc(sizeof(*platform_data), GFP_KERNEL);
 		 if (platform_data == NULL) {
@@ -1252,6 +1324,11 @@ static int pn544_probe(struct i2c_client *client,
 			 return  -ENODEV;
 		 }
 	}
+	if(!pn548_htc_turn_on_pvdd(client)) {
+		ret = -ENODEV;
+		goto err_exit;
+	}
+
 
 	
 	ret = gpio_request(platform_data->irq_gpio, "nfc_int");
@@ -1411,9 +1488,7 @@ static int pn544_probe(struct i2c_client *client,
 		
 		if (pni->boot_mode == NFC_BOOT_MODE_OFF_MODE_CHARGING) {
 			I("%s: Turn off NFC PVDD at NFC_BOOT_MODE_OFF_MODE_CHARGING (bootmode = %d)\n", __func__, pni->boot_mode);
-                        pn544_Disable();
-			mdelay(10);
-			pn548_htc_off_mode_charging ();
+			mfg_nfc_test(88);
 		} else {
 		        I("%s: Turn off NFC VEN by default (bootmode = %d)\n", __func__, pni->boot_mode);
 		        pn544_Disable();
@@ -1427,6 +1502,7 @@ static int pn544_probe(struct i2c_client *client,
 			E("pn544_probe device_create_file dev_attr_nxp_chip_alive failed\n");
 			goto err_create_pn_file;
 		}
+		pn548_htc_turn_off_pvdd();
 	}
 
 	I("%s: Probe success! is_alive : %d, is_uicc_swp : %d\n", __func__, is_alive, is_uicc_swp);
@@ -1456,6 +1532,11 @@ err_exit:
 	E("%s: prob fail\n", __func__);
 	return ret;
 }
+
+static void pn544_shutdown(struct i2c_client *client) {
+	pn548_htc_power_off_sequence(is_alive);
+}
+
 
 static int pn544_remove(struct i2c_client *client)
 {
@@ -1523,6 +1604,7 @@ static struct i2c_driver pn544_driver = {
 	.id_table	= pn544_id,
 	.probe		= pn544_probe,
 	.remove		= pn544_remove,
+	.shutdown = pn544_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "pn544",

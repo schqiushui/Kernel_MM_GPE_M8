@@ -77,3 +77,4 @@ obj-$(CONFIG_FRONT_FLASHLIGHT_COMMON)       += front_flashlight_common.o
 
 # lp5521 LED control chip
 obj-$(CONFIG_LEDS_LP5521_HTC)           += leds-lp5521_htc.o
+obj-$(CONFIG_LEDS_LP5521_HTC_VK)           += leds-lp5521_htc_vk.o

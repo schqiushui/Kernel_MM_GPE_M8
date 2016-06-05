@@ -333,21 +333,19 @@ int add_or_remove_port(struct sock *sk, int add_or_remove)
 	__be32 src = inet->inet_rcv_saddr;
 	__u16 srcp = ntohs(inet->inet_sport);
 
-	wake_lock(&port_suspend_lock);
 	if (!packet_filter_flag) {
-		wake_unlock(&port_suspend_lock);
 		return 0;
 	}
 	/* Check port list memory allocation */
 	if (port_list == NULL) {
 		if(allocate_port_list()!=0) {
-			wake_unlock(&port_suspend_lock);
 			return 0;
 		}
 	}
 
 	/* if TCP packet and source IP != 127.0.0.1 */
 	if (sk->sk_protocol == IPPROTO_TCP && src != 0x0100007F && srcp != 0) {
+		wake_lock(&port_suspend_lock);
 		mutex_lock(&port_lock);
 		PF_LOG_INFO("[Port list] TCP port#: [%d]\n", srcp);
 		if (add_or_remove)
@@ -356,11 +354,13 @@ int add_or_remove_port(struct sock *sk, int add_or_remove)
 			remove_list(srcp);
 		update_port_list();
 		mutex_unlock(&port_lock);
+		wake_unlock(&port_suspend_lock);
 	}
 
 #ifdef PACKET_FILTER_UDP
 	/* UDP */
 	if (sk->sk_protocol == IPPROTO_UDP && src != 0x0100007F && srcp != 0) {
+		wake_lock(&port_suspend_lock);
 		mutex_lock(&port_lock);
 		port_updated = 0;
 		if (add_or_remove)
@@ -370,10 +370,9 @@ int add_or_remove_port(struct sock *sk, int add_or_remove)
 		if(port_updated)
 			update_port_list();
 		mutex_unlock(&port_lock);
+		wake_unlock(&port_suspend_lock);
 	}
 #endif
-
-	wake_unlock(&port_suspend_lock);
 	return 0;
 }
 EXPORT_SYMBOL(add_or_remove_port);
@@ -382,19 +381,17 @@ int update_port_list_charging_state(int enable)
 {
 	size_t count = 0;
 
-	wake_lock(&port_suspend_lock);
 	if (!packet_filter_flag) {
-		wake_unlock(&port_suspend_lock);
 		return 0;
 	}
 
 	if (port_list == NULL) {
 		PF_LOG_INFO("[Port list] port_list is NULL.\n");
-		wake_unlock(&port_suspend_lock);
 		return 0;
 	}
 
 	usb_enable = enable;
+	wake_lock(&port_suspend_lock);
 	mutex_lock(&port_lock);
 	if (usb_enable) {
 		port_list_enable(0);
@@ -434,11 +431,11 @@ static int __init port_list_init(void)
 	wake_lock_init(&port_suspend_lock, WAKE_LOCK_SUSPEND, "port_list");
 	mutex_init(&port_lock);
 
-	PF_LOG_INFO("[Port list] init()\n");
-
 	/* Print log only when debug flag (6) to 0x400000 */
 	if (get_kernel_flag() & KERNEL_FLAG_RIL_DBG_MEMCPY)
 		ril_debug_flag = 1;
+
+	PF_LOG_INFO("[Port list] init()\n");
 
 	/* initial TCP port list linked-list struct */
 	memset(&curr_port_list, 0, sizeof(curr_port_list));

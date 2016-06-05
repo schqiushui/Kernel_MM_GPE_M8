@@ -13,3 +13,7 @@ config SENSORS_ONLY_BMA255
 	  BMA255 ONLY G-sensor Driver implemented by HTC.
 
 endmenu
+
+source "drivers/i2c/sensors/iio/Kconfig"
+source "drivers/i2c/sensors/accel/Kconfig"
+source "drivers/i2c/sensors/common/Kconfig"

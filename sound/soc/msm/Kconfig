@@ -165,7 +165,9 @@ config AUDIO_OCMEM
 
 config DOLBY_DAP
 	bool "Enable Dolby DAP"
-	depends on SND_SOC_MSM8974
+# HTC_AUDIO_START
+	depends on SND_SOC_MSM8974 || SND_SOC_MSM8226
+# HTC_AUDIO_END
 	help
 	 To add support for dolby DAP post processing.
 	 This support is to configure the post processing parameters

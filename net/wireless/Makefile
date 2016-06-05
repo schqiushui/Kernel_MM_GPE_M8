@@ -17,7 +17,12 @@ cfg80211-$(CONFIG_CFG80211_INTERNAL_REGDB) += regdb.o
 
 ccflags-y += -D__CHECK_ENDIAN__
 
+ifneq ($(filter y,$(CONFIG_ARCH_MSM8974) $(CONFIG_MACH_A5_DUGL) $(CONFIG_MACH_A5_DWG) $(CONFIG_MACH_A5_DWGL) $(CONFIG_MACH_A5_TL) $(CONFIG_MACH_A5_UL)),)
+$(obj)/regdb.c: $(src)/db_m_mr.txt $(src)/genregdb.awk
+	@$(AWK) -f $(srctree)/$(src)/genregdb.awk < $< > $@
+else
 $(obj)/regdb.c: $(src)/db.txt $(src)/genregdb.awk
 	@$(AWK) -f $(srctree)/$(src)/genregdb.awk < $< > $@
+endif
 
 clean-files := regdb.c

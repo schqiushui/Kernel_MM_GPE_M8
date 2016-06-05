@@ -45,6 +45,7 @@ obj-$(CONFIG_BOSCH_BMA250)		+= bma250_bosch.o
 obj-$(CONFIG_INPUT_YAS_MAGNETOMETER) 	+= yas53x_kernel.o
 obj-$(CONFIG_VP_A1028)          	+= a1028.o
 obj-$(CONFIG_INPUT_CWSTM32)    		+= CwMcuSensor.o
+obj-$(CONFIG_IIO_CWSTM32)    		+= CwMcuSensor_iio.o
 obj-$(CONFIG_LIGHTSENSOR_EPL88051) 	+= epl88051.o
 obj-$(CONFIG_INPUT_EMINENT_EPL88051KPW) += epl88051_KPW.o
 obj-$(CONFIG_INPUT_CAPELLA_CM36686_NEW_AUDIO) 	+= cm36686.o

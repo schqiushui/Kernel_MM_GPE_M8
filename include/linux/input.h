@@ -475,6 +475,7 @@ struct input_keymap_entry {
 #define HALL_N_POLE		251	/* HALL Sensor N pole*/
 #define HALL_S_POLE		252	/* HALL Sensor S pole*/
 
+#define KEY_APPSELECT		580	
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
@@ -823,6 +824,9 @@ struct input_keymap_entry {
 #define ABS_MT_TRACKING_ID	0x39	/* Unique ID of initiated contact */
 #define ABS_MT_PRESSURE		0x3a	/* Pressure on contact area */
 #define ABS_MT_DISTANCE		0x3b	/* Contact hover distance */
+#define ABS_MT_TOOL_X		0x3c	
+#define ABS_MT_TOOL_Y		0x3d	
+#define ABS_MT_GLOVE		0x3e
 
 #ifdef __KERNEL__
 /* Implementation details, userspace should not care about these */

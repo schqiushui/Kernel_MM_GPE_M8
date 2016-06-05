@@ -69,6 +69,7 @@ struct himax_i2c_platform_data {
 	int gpio_irq;
 	int gpio_reset;
 	int gpio_3v3_en;
+	int gpio_switch;
 	int (*power)(int on);
 	void (*reset)(void);
 	struct himax_virtual_key *virtual_key;
@@ -89,6 +90,9 @@ struct himax_i2c_platform_data {
 	struct regulator *vcc_dig; 
 	struct regulator *vcc_i2c; 
 #endif
+#if defined(CONFIG_AK8789_HALLSENSOR) || defined(CONFIG_AK8789_HALLSENSOR_R2)
+	uint16_t hall_block_touch_time;
+#endif	
 	struct pinctrl *ts_pinctrl;
 	struct pinctrl_state *gpio_state_active;
 	struct pinctrl_state *gpio_state_suspend;
@@ -107,5 +111,6 @@ extern void himax_rst_gpio_set(int pinnum, uint8_t value);
 extern uint8_t himax_int_gpio_read(int pinnum);
 
 extern int himax_gpio_power_config(struct i2c_client *client,struct himax_i2c_platform_data *pdata);
+extern void himax_gpio_power_deconfig(struct i2c_client *client,struct himax_i2c_platform_data *pdata);
 
 #endif

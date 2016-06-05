@@ -1502,8 +1502,10 @@ mtp_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	while ((req = mtp_req_get(dev, &dev->tx_idle)))
 		mtp_request_free(req, dev->ep_in);
 
+#ifdef CONFIG_USB_DWC3_MSM
 	/* Dequeue all request pending on ep_out */
 	usb_ep_nuke(dev->ep_out);
+#endif
 
 	while ((req = mtp_req_get(dev, &dev->rx_idle))) {
 		DBG(dev->cdev, "%s: rx_idle release (%p)\n", __func__, req);

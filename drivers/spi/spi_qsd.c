@@ -1484,7 +1484,7 @@ static int msm_spi_dmov_map_buffers(struct msm_spi *dd)
 			ret = -ENOMEM;
 			goto error;
 		}
-		if (dd->multi_xfr)
+		if (dd->multi_xfr && nxt_xfr != NULL)
 			nxt_xfr->rx_dma = dma_handle;
 		else
 			first_xfr->rx_dma = dma_handle;

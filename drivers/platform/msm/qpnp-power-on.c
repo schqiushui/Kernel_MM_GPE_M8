@@ -23,9 +23,8 @@
 #include <linux/input.h>
 #include <linux/log2.h>
 #include <linux/qpnp/power-on.h>
-#ifdef CONFIG_KPDPWR_S2_DVDD_RESET
 #include <mach/devices_dtb.h>
-#endif
+#include <mach/htc_restart_handler.h>
 
 #define PMIC_VER_8941           0x01
 #define PMIC_VERSION_REG        0x0105
@@ -74,6 +73,9 @@
 #define QPNP_PON_S3_SRC(base)			(base + 0x74)
 #define QPNP_PON_S3_DBC_CTL(base)		(base + 0x75)
 #define QPNP_PON_TRIGGER_EN(base)		(base + 0x80)
+#define QPNP_PON_SEC_ACCESS(base)		(base + 0xD0)
+
+#define QPNP_PON_SEC_UNLOCK			0xA5
 
 #define QPNP_PON_S3_SRC_KPDPWR			0
 #define QPNP_PON_S3_SRC_RESIN			1
@@ -208,15 +210,124 @@ qpnp_pon_masked_write(struct qpnp_pon *pon, u16 addr, u8 mask, u8 val)
 	return rc;
 }
 
-/**
- * qpnp_pon_system_pwr_off - Configure system-reset PMIC for shutdown or reset
- * @type: Determines the type of power off to perform - shutdown, reset, etc
- *
- * This function will only configure a single PMIC. The other PMICs in the
- * system are slaved off of it and require no explicit configuration. Once
- * the system-reset PMIC is configured properly, the MSM can drop PS_HOLD to
- * activate the specified configuration.
- */
+int qpnp_get_s2_en(int pon_type)
+{
+	u16 rst_en_reg;
+	struct qpnp_pon *pon = sys_reset_dev;
+	int rc;
+	u8 val = 0;
+
+	if (pon == NULL)
+		return -ENOMEM;
+
+	switch (pon_type) {
+	case PON_KPDPWR:
+		rst_en_reg = QPNP_PON_KPDPWR_S2_CNTL2(pon->base);
+		break;
+	case PON_RESIN:
+		rst_en_reg = QPNP_PON_RESIN_S2_CNTL2(pon->base);
+		break;
+	case PON_KPDPWR_RESIN:
+		rst_en_reg = QPNP_PON_KPDPWR_RESIN_S2_CNTL2(pon->base);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+			rst_en_reg, &val, 1);
+	if (rc) {
+		dev_err(&pon->spmi->dev,
+			"%s: Unable to read addr = %x, rc(%d)\n", __func__, rst_en_reg, rc);
+		return -EINVAL;
+	}
+
+	if (val & QPNP_PON_S2_RESET_ENABLE)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(qpnp_get_s2_en);
+
+int qpnp_config_s2_enable(int pon_type, int en)
+{
+	u16 rst_en_reg;
+	struct qpnp_pon *pon = sys_reset_dev;
+	int rc;
+
+	if (pon == NULL)
+		return -ENOMEM;
+
+	switch (pon_type) {
+	case PON_KPDPWR:
+		rst_en_reg = QPNP_PON_KPDPWR_S2_CNTL2(pon->base);
+		break;
+	case PON_RESIN:
+		rst_en_reg = QPNP_PON_RESIN_S2_CNTL2(pon->base);
+		break;
+	case PON_KPDPWR_RESIN:
+		rst_en_reg = QPNP_PON_KPDPWR_RESIN_S2_CNTL2(pon->base);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (en)
+		rc = qpnp_pon_masked_write(pon, rst_en_reg, QPNP_PON_RESET_EN,
+							QPNP_PON_S2_RESET_ENABLE);
+	else
+		rc = qpnp_pon_masked_write(pon, rst_en_reg, QPNP_PON_RESET_EN, 0);
+
+	if (rc) {
+		dev_err(&pon->spmi->dev,
+			"%s: Unable to write to addr = %x, rc(%d)\n", __func__, rst_en_reg, rc);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(qpnp_config_s2_enable);
+
+void qpnp_kick_s2_timer(void)
+{
+	if (qpnp_get_s2_en(PON_KPDPWR_RESIN) > 0) {
+		qpnp_config_s2_enable(PON_KPDPWR_RESIN, 0);
+		udelay(100);
+		qpnp_config_s2_enable(PON_KPDPWR_RESIN, 1);
+		udelay(100);
+	}
+}
+EXPORT_SYMBOL(qpnp_kick_s2_timer);
+
+int qpnp_pon_set_s3_timer(u32 s3_debounce)
+{
+	int rc = 0;
+	struct qpnp_pon *pon = sys_reset_dev;
+
+	
+	rc = qpnp_pon_masked_write(pon, QPNP_PON_SEC_ACCESS(pon->base),
+			0xFF, QPNP_PON_SEC_UNLOCK);
+	if (rc) {
+		dev_err(&pon->spmi->dev, "PM:Unable to do SEC_ACCESS rc:%d\n",
+				rc);
+		return rc;
+	}
+
+	
+	rc = qpnp_pon_masked_write(pon, QPNP_PON_S3_DBC_CTL(pon->base),
+			QPNP_PON_S3_DBC_DELAY_MASK, s3_debounce);
+	if (rc) {
+		dev_err(&pon->spmi->dev, "PM:Unable to set S3 debounce rc:%d\n",
+				rc);
+		return rc;
+	}
+
+	
+	udelay(200);
+
+	return rc;
+}
+
 int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
 {
 	int rc;
@@ -428,7 +539,7 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		return -EINVAL;
 	}
 
-#ifndef CONFIG_INPUT_GPIO	/* If using HTC key driver, not report event */
+#ifdef CONFIG_QPNP_KEY_INPUT	
 	input_report_key(pon->pon_input, cfg->key_code,
 					(pon_rt_sts & pon_rt_bit));
 	input_sync(pon->pon_input);
@@ -466,6 +577,11 @@ static irqreturn_t qpnp_resin_irq(int irq, void *_pon)
 
 static irqreturn_t qpnp_kpdpwr_resin_bark_irq(int irq, void *_pon)
 {
+	struct qpnp_pon *pon = _pon;
+
+	dev_err(&pon->spmi->dev, "Long press power key: kpdpwer+resin bark\r\n");
+	set_restart_action(RESTART_REASON_RAMDUMP, "Powerkey Hard Reset");
+
 	return IRQ_HANDLED;
 }
 
@@ -514,8 +630,10 @@ static void bark_work_func(struct work_struct *work)
 
 	if (!(pon_rt_sts & QPNP_PON_RESIN_BARK_N_SET)) {
 		/* report the key event and enable the bark IRQ */
+#ifdef CONFIG_QPNP_KEY_INPUT
 		input_report_key(pon->pon_input, cfg->key_code, 0);
 		input_sync(pon->pon_input);
+#endif
 		enable_irq(cfg->bark_irq);
 	} else {
 		/* disable reset */
@@ -557,11 +675,12 @@ static irqreturn_t qpnp_resin_bark_irq(int irq, void *_pon)
 		goto err_exit;
 	}
 
-	/* report the key event */
-
+#ifdef CONFIG_QPNP_KEY_INPUT
+	
 	input_report_key(pon->pon_input, cfg->key_code, 1);
 	input_sync(pon->pon_input);
-	/* schedule work to check the bark status for key-release */
+#endif
+	
 	schedule_delayed_work(&pon->bark_work, QPNP_KEY_STATUS_DELAY);
 err_exit:
 	return IRQ_HANDLED;
@@ -1101,7 +1220,10 @@ static int __devinit qpnp_pon_config_init(struct qpnp_pon *pon)
 					"Incorrect reset type specified\n");
 				return -EINVAL;
 			}
-
+			
+			if (get_radio_flag() & 0x8) {
+				cfg->s2_type = 1; 
+			}
 		}
 		/*
 		 * Get the standard-key parameters. This might not be
@@ -1183,6 +1305,67 @@ free_input_dev:
 		input_free_device(pon->pon_input);
 	return rc;
 }
+
+static int do_kick_s2_timer(const char *val, const struct kernel_param *kp)
+{
+	qpnp_kick_s2_timer();
+	return 0;
+}
+
+static int get_kick_s2_timer(char *buf, const struct kernel_param *kp)
+{
+	return snprintf(buf, PAGE_SIZE, "%d", 0);
+}
+
+static bool to_extend_s3_timer;
+static bool to_extend_s3_timer_z = false;
+static int do_extend_s3_timer(const char *val, const struct kernel_param *kp)
+{
+	int rc;
+	int s3_debounce;
+
+	rc = param_set_bool(val, kp);
+	if (rc) {
+		pr_err("do_extend_s3_timer: wrong param, %d\n", rc);
+		return rc;
+	}
+
+	
+	if((*(bool *)kp->arg) == to_extend_s3_timer_z)
+		return 0;
+
+	if (*(bool *)kp->arg)
+		s3_debounce = ilog2(128); 
+	else
+		s3_debounce = ilog2(32); 
+
+
+	
+	rc = qpnp_pon_set_s3_timer(s3_debounce);
+	if (rc) {
+		pr_err("do_extend_s3_timer failed, %d\n", rc);
+		return rc;
+	}
+
+	
+	to_extend_s3_timer_z = to_extend_s3_timer;
+
+	return 0;
+}
+
+static struct kernel_param_ops kick_s2_timer_ops = {
+	.set = do_kick_s2_timer,
+	.get = get_kick_s2_timer,
+};
+
+module_param_cb(kick_s2_timer, &kick_s2_timer_ops, NULL, 0644);
+
+static struct kernel_param_ops extend_s3_timer_ops = {
+	.set = do_extend_s3_timer,
+	.get = param_get_bool,
+};
+
+module_param_cb(extend_s3_timer, &extend_s3_timer_ops, &to_extend_s3_timer, 0644);
 
 #ifdef CONFIG_HTC_POWER_DEBUG
 extern void htc_print_pon_boot_reason(void);

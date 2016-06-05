@@ -13,7 +13,6 @@
 #ifndef __HTC_CHARGER_H__
 #define __HTC_CHARGER_H__
 
-/* for cable_detect struct */
 #include <mach/board.h>
 
 enum htc_charger_event {
@@ -38,17 +37,14 @@ enum htc_charger_event {
 };
 
 enum htc_charging_cfg {
-	HTC_CHARGER_CFG_LIMIT = 0,	/* cdma talking */
+	HTC_CHARGER_CFG_LIMIT = 0,	
 	HTC_CHARGER_CFG_SLOW,
 	HTC_CHARGER_CFG_FAST,
-/*	HTC_CHARGER_CFG_9VFAST,
-	HTC_CHARGER_CFG_WARM,
-	HTC_CHARGER_CFG_COOL,*/
 };
 
 enum htc_power_source_type {
-	/* HTC_PWR_SOURCE_TYPE_DRAIN, */
-	/* HTC_PWR_SOURCE_TYPE_UNKNOWN, */
+	
+	
 	HTC_PWR_SOURCE_TYPE_BATT = 0,
 	HTC_PWR_SOURCE_TYPE_USB,
 	HTC_PWR_SOURCE_TYPE_AC,
@@ -57,7 +53,7 @@ enum htc_power_source_type {
 	HTC_PWR_SOURCE_TYPE_MHL_AC,
 	HTC_PWR_SOURCE_TYPE_DETECTING,
 	HTC_PWR_SOURCE_TYPE_UNKNOWN_USB,
-	HTC_PWR_SOURCE_TYPE_PQM_FASTCHARGE,
+	HTC_PWR_SOURCE_TYPE_CABLE_INSERT,
 	HTC_PWR_SOURCE_TYPE_MAX = 255,
 };
 
@@ -73,6 +69,7 @@ enum htc_extchg_event_type {
 };
 
 enum htc_ftm_power_source_type {
+	HTC_FTM_PWR_SOURCE_TYPE_NONE_STOP = -1,
 	HTC_FTM_PWR_SOURCE_TYPE_NONE = 0,
 	HTC_FTM_PWR_SOURCE_TYPE_USB,
 	HTC_FTM_PWR_SOURCE_TYPE_AC,
@@ -102,6 +99,10 @@ struct htc_charger {
 #else
 	int (*set_limit_charge_enable)(bool enable);
 #endif
+
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+	int (*set_limit_charge_on_high_vol_enable)(bool enable);
+#endif
 	int (*set_limit_input_current)(bool enable, int reason);
 	int (*set_chg_iusbmax)(int val);
 	int (*set_chg_curr_settled)(int val);
@@ -126,9 +127,13 @@ struct htc_charger {
 	int (*get_input_voltage_regulation)(void);
 	int (*store_battery_charger_data)(void);
 	int (*set_ftm_charge_enable_type)(enum htc_ftm_power_source_type ftm_src);
+	int (*is_hv_battery_detection)(int *result);
+	int (*is_bad_cable_used)(int *result);
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+	int (*fake_chg_uv_irq_handler)(void);
+#endif
 };
 
-/* let driver including this .h can notify event to htc battery */
 int htc_charger_event_notify(enum htc_charger_event);
 
 

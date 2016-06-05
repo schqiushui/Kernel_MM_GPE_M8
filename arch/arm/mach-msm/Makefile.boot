@@ -162,6 +162,9 @@ ifeq ($(CONFIG_MACH_A5_UL)$(CONFIG_MACH_A5_DWG)$(CONFIG_MACH_A5_TL)$(CONFIG_MACH
 	htc_dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-a5dwgl.dtb
 	htc_dtb-$(CONFIG_ARCH_MSM8226)  += msm8926-a5dugl.dtb
 endif
+ifeq ($(CONFIG_MACH_A56_UL), y)
+    htc_dtb-$(CONFIG_ARCH_MSM8226)  += msm8926-a56ul.dtb
+endif
 ifeq ($(CONFIG_MACH_J1), y)
 	htc_dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-j1.dtb
 endif

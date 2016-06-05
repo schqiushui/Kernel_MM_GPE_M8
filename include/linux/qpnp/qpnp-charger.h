@@ -93,6 +93,7 @@ int pm8941_get_usb_temperature(int *result);
 int pm8941_store_battery_charger_data_emmc(void);
 int pm8941_usb_overheat_otg_mode_check(void);
 int pm8941_set_ftm_charge_enable_type(enum htc_ftm_power_source_type ftm_src);
+int pm8941_is_bad_cable_used(int *result);
 #endif/* CONFIG_HTC_BATT_8960 */
 #else /* CONFIG_QPNP_CHARGER */
 #ifdef CONFIG_HTC_BATT_8960
@@ -183,7 +184,7 @@ static inline int pm8941_set_chg_vin_min(int val)
 }
 static inline int pm8941_set_chg_iusbmax(int val)
 {
-	return -ENXIO
+	return -ENXIO;
 }
 static inline int pm8941_set_hsml_target_ma(int target_ma)
 {
@@ -235,7 +236,7 @@ static inline int pm8941_limit_charge_enable(bool enable)
 	return -ENXIO;
 }
 #endif
-static int pm8941_limit_input_current(bool enable, int reason);
+static inline int pm8941_limit_input_current(bool enable, int reason)
 {
 	return -ENXIO;
 }
@@ -256,6 +257,10 @@ static inline int pm8941_set_ftm_charge_enable_type(enum htc_ftm_power_source_ty
 	return -ENXIO;
 }
 static inline int pm8941_set_charger_after_eoc(bool enable)
+{
+	return -ENXIO;
+}
+static inline int pm8941_is_bad_cable_used(int *result)
 {
 	return -ENXIO;
 }

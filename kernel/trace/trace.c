@@ -2928,7 +2928,7 @@ tracing_ctrl_read(struct file *filp, char __user *ubuf,
 	char buf[64];
 	int r;
 
-	r = sprintf(buf, "%u\n", tracer_enabled);
+	r = snprintf(buf, sizeof(buf), "%u\n", tracer_enabled);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 

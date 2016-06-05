@@ -362,9 +362,9 @@ void htc_prink_name_offset(unsigned long addr)
         char symname[KSYM_NAME_LEN];
 
         if (lookup_symbol_name(addr, symname) < 0)
-                printk("<%p>", (void *)addr);
+                printk(KERN_CONT "<%p>", (void *)addr);
         else
-                printk("%s", symname);
+                printk(KERN_CONT "%s", symname);
 }
 
 void htc_timer_stats_show(u16 water_mark)
@@ -401,9 +401,9 @@ void htc_timer_stats_show(u16 water_mark)
                 }
 
                 htc_prink_name_offset((unsigned long)entry->start_func);
-                printk(" (");
+                printk(KERN_CONT " (");
                 htc_prink_name_offset((unsigned long)entry->expire_func);
-                printk(")\n");
+                printk(KERN_CONT ")\n");
         }
 
         ms += period.tv_sec * 1000;

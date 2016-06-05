@@ -1422,7 +1422,7 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 	if (opts->release_agent)
 		strcpy(root->release_agent_path, opts->release_agent);
 	if (opts->name)
-		strcpy(root->name, opts->name);
+		strncpy(root->name, opts->name, sizeof(root->name) - 1);
 	if (opts->clone_children)
 		set_bit(CGRP_CLONE_CHILDREN, &root->top_cgroup.flags);
 	return root;
@@ -2390,7 +2390,7 @@ static ssize_t cgroup_read_u64(struct cgroup *cgrp, struct cftype *cft,
 {
 	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
 	u64 val = cft->read_u64(cgrp, cft);
-	int len = sprintf(tmp, "%llu\n", (unsigned long long) val);
+	int len = snprintf(tmp, sizeof(tmp), "%llu\n", (unsigned long long) val);
 
 	return simple_read_from_buffer(buf, nbytes, ppos, tmp, len);
 }
@@ -2402,7 +2402,7 @@ static ssize_t cgroup_read_s64(struct cgroup *cgrp, struct cftype *cft,
 {
 	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
 	s64 val = cft->read_s64(cgrp, cft);
-	int len = sprintf(tmp, "%lld\n", (long long) val);
+	int len = snprintf(tmp, sizeof(tmp), "%lld\n", (long long) val);
 
 	return simple_read_from_buffer(buf, nbytes, ppos, tmp, len);
 }
@@ -2652,9 +2652,9 @@ int cgroup_add_file(struct cgroup *cgrp,
 	char name[MAX_CGROUP_TYPE_NAMELEN + MAX_CFTYPE_NAME + 2] = { 0 };
 	if (subsys && !test_bit(ROOT_NOPREFIX, &cgrp->root->flags)) {
                 strncpy(name, subsys->name, sizeof(name)-1);
-		strcat(name, ".");
+		strncat(name, ".", sizeof(name) - 1 - strlen(name));
 	}
-	strcat(name, cft->name);
+	strncat(name, cft->name, sizeof(name) - 1 - strlen(name));
 	BUG_ON(!mutex_is_locked(&dir->d_inode->i_mutex));
 	dentry = lookup_one_len(name, dir, strlen(name));
 	if (!IS_ERR(dentry)) {

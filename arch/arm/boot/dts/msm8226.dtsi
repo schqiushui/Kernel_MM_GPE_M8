@@ -301,7 +301,7 @@
 		qcom,hsusb-otg-disable-reset;
 		qcom,dp-manual-pullup;
 		qcom,usb_id-vadc = <&pm8226_vadc>;
-		qcom,ahb-async-bridge-bypass;
+		/*qcom,ahb-async-bridge-bypass;*/
 		qcom,usbin-vadc = <&pm8226_vadc>;
 
 		qcom,msm-bus,name = "usb";
@@ -1013,7 +1013,7 @@
 		qcom,pmic-arb-channel = <0>;
 	};
 
-	i2c@f9924000 { /* BLSP-1 QUP-2 */
+	i2c_2: i2c@f9924000 { /* BLSP-1 QUP-2 */
 		cell-index = <1>;
 		compatible = "qcom,i2c-qup";
 		reg = <0xf9924000 0x1000>;
@@ -1058,7 +1058,7 @@
 		qcom,scl-gpio = <&msmgpio 19 0>;
 	};
 
-	i2c@f9928000 { /* BLSP1 QUP6 */
+	i2c_6: i2c@f9928000 { /* BLSP1 QUP6 */
 		cell-index = <4>;
 		compatible = "qcom,i2c-qup";
 		reg = <0xf9928000 0x1000>;
@@ -1405,6 +1405,7 @@
 		qcom,msm-bus,active-only = <0>;
 		qcom,msm-bus,num-paths = <1>;
 		qcom,support-fde;
+		qcom,appsbl-qseecom-support;
 		qcom,msm-bus,vectors-KBps =
 				<55 512 0 0>,
 				<55 512 0 0>,

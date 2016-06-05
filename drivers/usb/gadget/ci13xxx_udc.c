@@ -3342,10 +3342,17 @@ static void ep_fifo_flush(struct usb_ep *ep)
 	spin_unlock_irqrestore(mEp->lock, flags);
 }
 
-/**
- * Endpoint-specific part of the API to the USB controller hardware
- * Check "usb_gadget.h" for details
- */
+static void ep_nuke(struct usb_ep *ep)
+{
+	struct ci13xxx_ep *mEp = container_of(ep, struct ci13xxx_ep, ep);
+	struct ci13xxx *udc = _udc;
+	unsigned long flags;
+
+	spin_lock_irqsave(udc->lock, flags);
+	_ep_nuke(mEp);
+	spin_unlock_irqrestore(udc->lock, flags);
+}
+
 static const struct usb_ep_ops usb_ep_ops = {
 	.enable	       = ep_enable,
 	.disable       = ep_disable,
@@ -3356,6 +3363,7 @@ static const struct usb_ep_ops usb_ep_ops = {
 	.set_halt      = ep_set_halt,
 	.set_wedge     = ep_set_wedge,
 	.fifo_flush    = ep_fifo_flush,
+	.nuke	       = ep_nuke,
 };
 
 /******************************************************************************

@@ -118,6 +118,7 @@ struct cm36686_platform_data {
 	int intr;
 	uint32_t irq_gpio_flags;
 	uint32_t *levels;
+	uint32_t *leveltolux;
 	uint32_t *correction;
 	uint32_t golden_adc;
 	int (*power)(int, uint8_t);	/* power to the chip */

@@ -4509,7 +4509,6 @@ static int __q6asm_cmd_nowait(struct audio_client *ac, int cmd,
 		return -EINVAL;
 	}
 	q6asm_stream_add_hdr_async(ac, &hdr, sizeof(hdr), TRUE, stream_id);
-	atomic_set(&ac->cmd_state, 1);
 	/*
 	 * Updated the token field with stream/session for compressed playback
 	 * Platform driver must know the the stream with which the command is

@@ -173,16 +173,18 @@ struct regulator_desc {
 	struct module *owner;
 };
 
-/*
- * struct regulator_dev
- *
- * Voltage / Current regulator class device. One for each
- * regulator.
- *
- * This should *not* be used directly by anything except the regulator
- * core and notification injection (which should take the mutex and do
- * no other direct access).
- */
+struct regulator_config {
+	struct device *dev;
+	const struct regulator_init_data *init_data;
+	void *driver_data;
+	struct device_node *of_node;
+	struct regmap *regmap;
+
+	int ena_gpio;
+	unsigned int ena_gpio_invert:1;
+	unsigned int ena_gpio_flags;
+};
+
 struct regulator_dev {
 	struct regulator_desc *desc;
 	int exclusive;

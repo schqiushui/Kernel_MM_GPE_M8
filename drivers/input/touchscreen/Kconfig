@@ -11,6 +11,8 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+source "drivers/input/touchscreen/synaptics_dsx_htc/Kconfig"
+
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X
@@ -526,6 +528,12 @@ config TOUCHSCREEN_HIMAX_ES
 	help
 	  This enables support for HIMAX HM852xES over I2C based touchscreens.
 
+config TOUCHSCREEN_HIMAX_ES_1
+	tristate "HIMAX HM852xES serious i2c touchscreen"
+	depends on I2C
+	help
+	  This enables support for HIMAX HM852xES over I2C based touchscreens.
+
 config TOUCHSCREEN_HIMAX_DEBUG
 	tristate "HIMAX HM852xES serious debug function"
 	depends on I2C
@@ -991,6 +999,14 @@ config TOUCHSCREEN_CYTTSP_I2C_QC
 
          To compile this driver as a module, choose M here: the
          module will be called cyttsp-i2c.
+
+config TOUCHSCREEN_TOUCH_FW_UPDATE
+        tristate "Touchscreen firmware update"
+        default y
+        help
+          Say Y here to support touch firmware update
+
+          If unsure, say N.
 
 config TOUCHSCREEN_FT5X06
        tristate "FocalTech touchscreens"
