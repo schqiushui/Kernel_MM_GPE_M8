@@ -2400,9 +2400,8 @@ static void uart_lv_shift_en(int enable);
 #endif
 static struct htc_headset_mgr_platform_data htc_headset_mgr_data = {
 	.driver_flag		= DRIVER_HS_MGR_FLOAT_DET,
-	//.headset_config_num	= ARRAY_SIZE(htc_headset_mgr_config),
-	//.headset_config		= htc_headset_mgr_config,
-        .headset_init		= headset_init,
+	
+	
 	.headset_power		= headset_power,
 #ifdef CONFIG_HTC_HEADSET_ONE_WIRE
 	.headset_init		= headset_init,
