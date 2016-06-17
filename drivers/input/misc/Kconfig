@@ -723,6 +723,11 @@ config AK8789_HALLSENSOR
 	help
 	  if you say yes here, you get support for ak8789 hall sensor
 
+config AK8789_HALLSENSOR_R2
+        tristate "ak8789 hall sensor (r2) support"
+        help
+          if you say yes here, you get support for ak8789 hall sensor
+
 config INPUT_DUMMY_KEYPAD
        tristate "Dummy Keypad driver support"
        help

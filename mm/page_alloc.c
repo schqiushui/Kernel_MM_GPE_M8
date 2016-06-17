@@ -5317,30 +5317,22 @@ static void __meminit setup_per_zone_inactive_ratio(void)
 		calculate_zone_inactive_ratio(zone);
 }
 
-/*
- * Initialise min_free_kbytes.
- *
- * For small machines we want it small (128k min).  For large machines
- * we want it large (64MB max).  But it is not linear, because network
- * bandwidth does not increase linearly with machine size.  We use
- *
- * 	min_free_kbytes = 4 * sqrt(lowmem_kbytes), for better accuracy:
- *	min_free_kbytes = sqrt(lowmem_kbytes * 16)
- *
- * which yields
- *
- * 16MB:	512k
- * 32MB:	724k
- * 64MB:	1024k
- * 128MB:	1448k
- * 256MB:	2048k
- * 512MB:	2896k
- * 1024MB:	4096k
- * 2048MB:	5792k
- * 4096MB:	8192k
- * 8192MB:	11584k
- * 16384MB:	16384k
- */
+int vm_inactive_ratio = 0;
+int vm_inactive_ratio_handler(ctl_table *table, int write,
+	void __user *buffer, size_t *length, loff_t *ppos)
+{
+	struct zone *zone;
+	int old_ratio = vm_inactive_ratio;
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	if (ret == 0 && write && vm_inactive_ratio != old_ratio) {
+		for_each_zone(zone){
+			zone->inactive_ratio = vm_inactive_ratio;
+		}
+	}
+	return ret;
+}
 int __meminit init_per_zone_wmark_min(void)
 {
 	unsigned long lowmem_kbytes;

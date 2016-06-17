@@ -259,7 +259,7 @@ struct v4l2_capability {
 /* HTC_START: Pass calling process id and name in kernel space */
 struct htc_callingpid_data {
         pid_t call_pid;
-        const char *process_name;
+        __u8 process_name[50];
 };
 /* HTC_END */
 

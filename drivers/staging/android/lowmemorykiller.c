@@ -139,6 +139,8 @@ int can_use_cma_pages(gfp_t gfp_mask)
 	return can_use;
 }
 
+#define REVERT_ADJ(x)  (x * (-OOM_DISABLE + 1) / OOM_SCORE_ADJ_MAX)
+
 static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 {
 	struct task_struct *tsk;
@@ -147,6 +149,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int tasksize;
 	int i;
 	int min_score_adj = OOM_SCORE_ADJ_MAX + 1;
+	int minfree = 0;
 	int selected_tasksize = 0;
 	int selected_oom_score_adj;
 	int selected_oom_adj = 0;
@@ -193,6 +196,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	if (lowmem_minfree_size < array_size)
 		array_size = lowmem_minfree_size;
 	for (i = 0; i < array_size; i++) {
+		minfree = lowmem_minfree[i];
 		if ((other_free - reserved_free - (use_cma ? 0 : cma_free)) < lowmem_minfree[i] &&
 		    other_file < lowmem_minfree[i]) {
 			min_score_adj = lowmem_adj[i];
@@ -264,6 +268,51 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			    tasksize <= selected_tasksize)
 				continue;
 		}
+
+#ifdef CONFIG_LMK_ZYGOTE_PROTECT
+		
+		if (!strncmp("main",p->comm,4) && p->parent->pid == 1 ) {
+			if (oom_score_adj != OOM_SCORE_ADJ_MIN) {
+				lowmem_print(2, "select but ignore '%s' (%d), oom_score_adj %d, oom_adj %d, size %d, to kill with invalid adj values\n" \
+								"cache %ldkB is below limit %ldkB",
+					p->comm, p->pid, oom_score_adj, REVERT_ADJ(oom_score_adj), tasksize,
+					other_file * (long)(PAGE_SIZE / 1024),
+					minfree * (long)(PAGE_SIZE / 1024));
+
+				
+				task_lock(p);
+				p->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
+				task_unlock(p);
+
+				lowmem_print(2, "reset the '%s' (%d) adj values: oom_score_adj %d, oom_adj %d\n",
+						p->comm, p->pid, OOM_SCORE_ADJ_MIN, REVERT_ADJ(OOM_SCORE_ADJ_MIN));
+
+				continue;
+			}
+		}
+
+		
+		if (!strncmp("system_server",p->comm,13) ) {
+			if (oom_score_adj >= 0) {
+				lowmem_print(2, "select but ignore '%s' (%d), oom_score_adj %d, oom_adj %d, size %d, to kill with invalid adj values\n" \
+								"cache %ldkB is below limit %ldkB",
+					p->comm, p->pid, oom_score_adj, REVERT_ADJ(oom_score_adj), tasksize,
+					other_file * (long)(PAGE_SIZE / 1024),
+					minfree * (long)(PAGE_SIZE / 1024));
+
+				
+				task_lock(p);
+				p->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
+				task_unlock(p);
+
+				lowmem_print(2, "reset the '%s' (%d) adj values: oom_score_adj %d, oom_adj %d\n",
+						p->comm, p->pid, OOM_SCORE_ADJ_MIN, REVERT_ADJ(OOM_SCORE_ADJ_MIN));
+
+				continue;
+			}
+		}
+#endif
+
 		selected = p;
 		selected_tasksize = tasksize;
 		selected_oom_score_adj = oom_score_adj;

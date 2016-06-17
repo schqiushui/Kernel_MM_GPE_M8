@@ -149,6 +149,8 @@ static int intrsharing;
 #define PID_MTPUMS_STOCKUI	0x0f26
 #define PID_STOCKUI	0x060d
 #define PID_UL 0x061A
+#define PID_MTP		0x0c93
+#define PID_MTPADB		0x0f87
 
 #define PDATA_NOT_DEFINED(field) \
 	printk(KERN_INFO "[USB] %s: %s isnt defined\n",	__func__, field);
@@ -420,8 +422,8 @@ int android_switch_function(unsigned func)
 	struct android_usb_function *f;
 	
 	struct android_usb_function_holder *f_holder;
-	struct android_usb_function *fadb = NULL;
-	struct android_usb_function *fums = NULL;
+	
+	
 	struct android_configuration *conf;
 	struct android_usb_product *product;
 	int product_id = 0, vendor_id = 0;
@@ -453,7 +455,7 @@ int android_switch_function(unsigned func)
 		return 0;
 	}
 
-	if ((get_radio_flag() & BIT(17)) || (get_debug_flag() & 0x100)) {
+	if ((get_radio_flag() & BIT(17)) || (get_debug_flag() & 0x101)) {
 		if (func == (1 << USB_FUNCTION_CHARGING))
 			func = (1 << USB_FUNCTION_UMS);
 		else if (func == (1 << USB_FUNCTION_ADB))
@@ -462,14 +464,12 @@ int android_switch_function(unsigned func)
 	}
 
 
-	if (get_radio_flag() & BIT(17)) {
-		if ((func & ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB)))) {
-			if (!(func & (1 << USB_FUNCTION_MTP)))
+	if ((func & ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB))) == 3) {
+		if (!((func & (1 << USB_FUNCTION_MTP)) || (func & (1 << USB_FUNCTION_RNDIS))))
 				swap_ums_adb = 1;
-		}
 	}
 
-	if ((get_radio_flag() & BIT(17)) && (board_mfg_mode() == 0)) {
+	if ((get_radio_flag() & BIT(17))) {
 		if (func == ((1 << USB_FUNCTION_MTP) | (1 << USB_FUNCTION_ADB))) { 
 			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM) | (1 << USB_FUNCTION_RMNET));
 			pr_info("%s: add diag, modem, rment: %d\n", __func__, func);
@@ -482,6 +482,12 @@ int android_switch_function(unsigned func)
 		} else if (func == (1 << USB_FUNCTION_UMS)) { 
 			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM) | (1 << USB_FUNCTION_RMNET));
 			pr_info("%s: add diag, modem, rment: %d\n", __func__, func);
+		} else if (func == ((1 << USB_FUNCTION_RNDIS) | (1 << USB_FUNCTION_ADB))) { 
+			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM));
+			pr_info("%s: add diag, modem: %d\n", __func__, func);
+		} else if (func == (1 << USB_FUNCTION_RNDIS)) { 
+			func |= ((1 << USB_FUNCTION_DIAG) | (1 << USB_FUNCTION_MODEM));
+			pr_info("%s: add diag, modem: %d\n", __func__, func);
 		} else
 			pr_info("%s: need not to enable diag, modem, rment\n", __func__);
 	}
@@ -510,9 +516,9 @@ int android_switch_function(unsigned func)
 
 	while ((f = *functions++)) {
 		if ((func & (1 << USB_FUNCTION_UMS)) && !strcmp(f->name, "mass_storage")) {
-			if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB)))
-				fums = f;
-			else if (swap_ums_adb == 1) {
+			
+			
+			if (swap_ums_adb == 1) {
 				if (android_usb_function_holder_list_add(f, &conf->enabled_functions, dev))
 					pr_err("android_switch_function: Cannot add %s\n", f->name);
 			} else {
@@ -521,9 +527,9 @@ int android_switch_function(unsigned func)
 			}
 
 		} else if ((func & (1 << USB_FUNCTION_ADB)) && !strcmp(f->name, "adb")) {
-			if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB)))
-				fadb = f;
-			else if (swap_ums_adb == 1) {
+			
+			
+			if (swap_ums_adb == 1) {
 				if (android_usb_function_holder_list_add(f, &conf->enabled_functions, dev))
 					pr_err("android_switch_function: Cannot add %s\n", f->name);
 			} else {
@@ -628,16 +634,6 @@ int android_switch_function(unsigned func)
 		}
 	}
 	
-	if (func == ((1 << USB_FUNCTION_UMS) | (1 << USB_FUNCTION_ADB))) {
-		if (fums) {
-			if (android_usb_function_holder_list_add_tail(fums, &conf->enabled_functions, dev))
-				pr_err("android_switch_function: Cannot add %s\n", fums->name);
-		}
-		if (fadb) {
-			if (android_usb_function_holder_list_add_tail(fadb, &conf->enabled_functions, dev))
-				pr_err("android_switch_function: Cannot add %s\n", fadb->name);
-		}
-	}
 
 	list_for_each_entry(f_holder, &conf->enabled_functions, enabled_list)
 		pr_debug("# %s\n", f_holder->f->name);
@@ -663,6 +659,12 @@ int android_switch_function(unsigned func)
 	} else if (rom_stockui && (product_id == PID_UL)) {
 		product_id = PID_STOCKUI;
 		pr_info("%s: stockUI ROM for default function\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTP)) {
+		product_id = PID_MTPUMS_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP only\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTPADB)) {
+		product_id = PID_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP +ADB\n", __func__);
 	}
 	pr_info("%s: rom_stockui=%d\n", __func__, rom_stockui);
 
@@ -802,14 +804,9 @@ void android_switch_default(void)
 	mutex_unlock(&function_bind_sem);
 
 	if (val & (1 << USB_FUNCTION_ADB))
-		android_switch_function(
-				(1 << USB_FUNCTION_MTP) |
-				(1 << USB_FUNCTION_ADB) |
-				(1 << USB_FUNCTION_UMS));
+		android_switch_function((1 << USB_FUNCTION_ADB));
 	else
-		android_switch_function(
-				(1 << USB_FUNCTION_MTP) |
-				(1 << USB_FUNCTION_UMS));
+		android_switch_function((1 << USB_FUNCTION_CHARGING));
 }
 
 void android_switch_htc_mode(void)
@@ -1333,6 +1330,12 @@ static void setup_vendor_info(struct android_dev *dev) {
 	} else if (rom_stockui && (product_id == PID_UL)) {
 		product_id = PID_STOCKUI;
 		pr_info("%s: stockUI ROM for default function\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTP)) {
+		product_id = PID_MTPUMS_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP only\n", __func__);
+	} else if (rom_stockui && (product_id == PID_MTPADB)) {
+		product_id = PID_STOCKUI;
+		pr_info("%s: stockUI ROM PID for MTP +ADB\n", __func__);
 	}
 
 	pr_info("%s: rom_stockui=%d\n", __func__, rom_stockui);

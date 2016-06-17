@@ -806,9 +806,11 @@ int adreno_drawctxt_switch(struct adreno_device *adreno_dev,
 		 * will use the CPU path so we don't need to give
 		 * it a valid context id.
 		 */
-		ret = kgsl_mmu_setstate(&device->mmu,
-					 device->mmu.defaultpagetable,
-					adreno_dev->drawctxt_active->base.id);
+		if (adreno_dev->drawctxt_active) {
+			ret = kgsl_mmu_setstate(&device->mmu,
+						 device->mmu.defaultpagetable,
+						adreno_dev->drawctxt_active->base.id);
+		}
 	}
 	/* Put the old instance of the active drawctxt */
 	if (adreno_dev->drawctxt_active)

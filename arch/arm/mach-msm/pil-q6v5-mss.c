@@ -49,6 +49,7 @@
 extern void msm_bam_dmux_dumplog(void);
 #endif
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+extern void msm_smd_dumplog(void);
 extern void msm_smsm_dumplog(void);
 #endif
 
@@ -71,6 +72,46 @@ struct modem_data {
 
 #define subsys_to_drv(d) container_of(d, struct modem_data, subsys_desc)
 
+#if defined(CONFIG_HTC_FEATURES_SSR)
+#if defined(CONFIG_HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS)
+static int htc_skip_ramdump=false;
+static void htc_set_ramdump_mode (struct subsys_device *dev)
+{
+#if defined(CONFIG_HTC_FEATURES_SSR_MODEM_ENABLE)
+	if (get_kernel_flag() & (KERNEL_FLAG_ENABLE_SSR_MODEM)) {
+			subsys_set_restart_level(dev, RESET_SOC);
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+	else {
+		subsys_set_restart_level(dev, RESET_SUBSYS_COUPLED);
+		if (get_radio_flag() & BIT(3))
+			subsys_set_enable_ramdump(dev, ENABLE_RAMDUMP);
+		else
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+#else
+	if (get_kernel_flag() & (KERNEL_FLAG_ENABLE_SSR_MODEM)) {
+		subsys_set_restart_level(dev, RESET_SUBSYS_COUPLED);
+		if (get_radio_flag() & BIT(3))
+			subsys_set_enable_ramdump(dev, ENABLE_RAMDUMP);
+		else
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+	else {
+		subsys_set_restart_level(dev, RESET_SOC);
+		subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+#endif
+
+	if (board_mfg_mode() != 0) {
+		subsys_set_restart_level(dev, RESET_SOC);
+		subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+	}
+}
+#endif
+#endif
+
+
 #if defined(CONFIG_HTC_DEBUG_SSR)
 static void log_modem_sfr(struct subsys_device *dev)
 #else
@@ -92,7 +133,28 @@ static void log_modem_sfr(void)
 
 	strlcpy(reason, smem_reason, min(size, sizeof(reason)));
 	pr_err("modem subsystem failure reason: %s.\n", reason);
+
 #if defined(CONFIG_HTC_DEBUG_SSR)
+#if defined(CONFIG_HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS)
+#if defined(CONFIG_HTC_FEATURES_SSR) 
+	if (get_radio_flag() & BIT(3)) 
+	{
+		if (strstr(reason, "[htc_disable_ssr]") || strstr(reason, "SFR Init: wdog or kernel error suspected") )
+		{
+			subsys_set_restart_level(dev, RESET_SOC);
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+			pr_info("%s: [pil] Modem request full dump.\n", __func__);
+		}
+		else if (strstr(reason, "[htc_skip_ramdump]"))
+		{
+			htc_skip_ramdump=true;
+			subsys_set_restart_level(dev, RESET_SUBSYS_COUPLED);
+			subsys_set_enable_ramdump(dev, DISABLE_RAMDUMP);
+			pr_info("%s: [pil] Modem request skip ramdump.\n", __func__);
+		}
+	}
+#endif 
+#endif 
 	subsys_set_restart_reason(dev, reason);
 #endif
 
@@ -116,7 +178,7 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 {
 	struct modem_data *drv = subsys_to_drv(dev_id);
 
-	/* Ignore if we're the one that set the force stop GPIO */
+	
 	if (drv->crash_shutdown)
 		return IRQ_HANDLED;
 
@@ -125,6 +187,7 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 #endif
 
 #ifdef CONFIG_HTC_DEBUG_RIL_PCN0005_HTC_DUMP_SMSM_LOG
+	msm_smd_dumplog();
 	msm_smsm_dumplog();
 #endif
 	pr_err("Fatal error on the modem.\n");
@@ -176,13 +239,20 @@ static int modem_powerup(const struct subsys_desc *subsys)
 
 	if (subsys->is_not_loadable)
 		return 0;
-	/*
-	 * At this time, the modem is shutdown. Therefore this function cannot
-	 * run concurrently with either the watchdog bite error handler or the
-	 * SMSM callback, making it safe to unset the flag below.
-	 */
 	INIT_COMPLETION(drv->stop_ack);
 	drv->ignore_errors = false;
+
+#if defined(CONFIG_HTC_FEATURES_SSR) 
+#if defined(CONFIG_HTC_DEBUG_RIL_PCN0012_HTC_CHANGE_RAMDUMP_MODE_BY_SPECIFIC_WORDS)
+	if (htc_skip_ramdump==true)
+	{
+		htc_skip_ramdump=false;
+		htc_set_ramdump_mode(drv->subsys);
+		pr_info("%s: [pil] restore htc ramdump mode!!\n",__func__);
+	}
+#endif 
+#endif 
+
 	ret = pil_boot(&drv->q6->desc);
 	if (ret)
 		return ret;
@@ -304,19 +374,6 @@ static int __devinit pil_subsys_init(struct modem_data *drv,
 	}
 
 #if defined(CONFIG_HTC_FEATURES_SSR)
-	/*modem restart condition and ramdump rule would follow below
-	1. Modem restart default enable
-	- flag [6] 0,   [8] 0 -> enable restart, no ramdump
-	- flag [6] 800, [8] 0 -> reboot
-	- flag [6] 800, [8] 8 -> disable restart, go DL mode
-	- flag [6] 0,   [8] 8 -> enable restart, online ramdump
-	2. Modem restart default disable
-	- flag [6] 0,   [8] 0 -> reboot
-	- flag [6] 800, [8] 0 -> enable restart, no ramdump
-	- flag [6] 800, [8] 8 -> enable restartm online ramdump
-	- flag [6] 0,   [8] 8 -> disable restart, go DL mode
-	3. Always disable Modem SSR if boot_mode != normal
-	*/
 #if defined(CONFIG_HTC_FEATURES_SSR_MODEM_ENABLE)
 	if (get_kernel_flag() & (KERNEL_FLAG_ENABLE_SSR_MODEM)) {
 			subsys_set_restart_level(drv->subsys, RESET_SOC);

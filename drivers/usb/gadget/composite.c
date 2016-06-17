@@ -28,7 +28,11 @@
  * with the relevant device-wide data.
  */
 
-/* big enough to hold our biggest descriptor */
+#define MAC_FIRST_DT_LENGTH  18
+#define WIN_LINUX_FIRST_DT1_LENGTH 8
+#define WIN_LINUX_FIRST_DT2_LENGTH 64
+
+
 #define USB_BUFSIZ	4096
 
 static struct usb_composite_driver *composite;
@@ -764,6 +768,11 @@ static int set_config(struct usb_composite_dev *cdev,
 		 */
 		switch (gadget->speed) {
 		case USB_SPEED_SUPER:
+			if (!f->ss_descriptors) {
+				pr_err("%s(): No SS desc for function:%s\n",
+							__func__, f->name);
+				return -EINVAL;
+			}
 			descriptors = f->ss_descriptors;
 			break;
 		case USB_SPEED_HIGH:
@@ -1193,12 +1202,60 @@ static void composite_setup_complete(struct usb_ep *ep, struct usb_request *req)
 }
 
 /*
- * The setup() callback implements all the ep0 functionality that's
- * not handled lower down, in hardware or the hardware driver(like
- * device and endpoint feature flags, and their status).  It's all
- * housekeeping for the gadget function we're implementing.  Most of
- * the work is in config and function specific setup.
+ * Copyright (C) 2015 HTC, Inc.
+ * Author: HTC USB Team
+ * The following two functions are used for get OS_type for HTC device.
+ * In tranditional design,the length of request USB_DT_CONFIG will
+ * different. MAC is 4, Windows is 255, Linux is 9. But for MAC 10.11,
+ * both MAC/LINUX is 9. Therefore, the design check_MAC_or_LINUX is use
+ * for distinguish OS_type. This function will store the first length
+ * of USB_DT_STRING and USB_DT_DEVICE and base on the value to get os
+ * type.
+ * 1. The length of first USB_DT_STRING is 2 and USB_DT_DEVICE is 18
+ * for MAC.
+ * 2. The length of first USB_DT_DEVICE is 8/64 for Windows/Linux.
  */
+static void check_MAC_or_LINUX(int first_dt_length, int first_string_length)
+{
+	switch (first_dt_length)
+	{
+		case MAC_FIRST_DT_LENGTH:
+			if (first_string_length == 2)
+				os_type = OS_MAC;
+				mtp_update_mode(1);
+			break;
+		case WIN_LINUX_FIRST_DT1_LENGTH:
+		case WIN_LINUX_FIRST_DT2_LENGTH:
+			os_type = OS_LINUX;
+			break;
+		default:
+			break;
+	}
+
+	if (os_type == OS_LINUX)
+		pr_info("[USB]%s: Re detect as OS_LINUX \n", __func__);
+	else if (os_type == OS_MAC)
+		pr_info("[USB]%s: Re detect as OS_MAC \n", __func__);
+	else {
+		pr_info("[USB]%s: unknow os type, so we just set mtp descriptor", __func__);
+		mtp_update_mode(1);
+	}
+}
+static void get_os_type(int length)
+{
+	if (length == 4) {
+		pr_info("[USB]%s: OS_MAC\n", __func__);
+		os_type = OS_MAC;
+		mtp_update_mode(1);
+	} else if (length == 255) {
+		pr_info("[USB]%s: OS_WINDOWS\n", __func__);
+		os_type = OS_WINDOWS;
+	} else if (length == 9 && os_type != OS_WINDOWS && os_type !=OS_MAC) {
+		check_MAC_or_LINUX(first_dt_w_length,first_string_w_length);
+	}
+}
+
+
 static int
 composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 {
@@ -1236,6 +1293,10 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		switch (w_value >> 8) {
 
 		case USB_DT_DEVICE:
+			if (first_dt_w_length == 0) {
+				first_dt_w_length = w_length;
+				printk("[USB] first_dt_w_length = %d \n",first_dt_w_length);
+			}
 			cdev->desc.bNumConfigurations =
 				count_configs(cdev, USB_DT_DEVICE);
 			cdev->desc.bMaxPacketSize0 =
@@ -1273,22 +1334,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				break;
 			/* FALLTHROUGH */
 		case USB_DT_CONFIG:
-			if (w_length == 4) {
-				pr_info("%s: OS_MAC\n", __func__);
-				os_type = OS_MAC;
-				mtp_update_mode(1);
-			} else if (w_length == 255) {
-				pr_info("%s: OS_WINDOWS\n", __func__);
-				os_type = OS_WINDOWS;
-			} else if (w_length == 9 && os_type != OS_WINDOWS) {
-				pr_info("%s: OS_LINUX\n", __func__);
-				if (os_type != OS_LINUX) {
-					os_type = OS_LINUX;
-					schedule_delayed_work(
-						&cdev->request_reset,
-						REQUEST_RESET_DELAYED);
-				}
-			}
+			get_os_type(w_length);
 
 			value = config_desc(cdev, w_value);
 			if (value >= 0)
@@ -1305,6 +1351,10 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 						USB_DT_OTG);
 			break;
 		case USB_DT_STRING:
+			if (first_string_w_length == 0) {
+				first_string_w_length = w_length;
+				printk("[USB] first_string_w_length = %d \n",first_string_w_length);
+			}
 			mfg_check_white_line();
 			value = get_string(cdev, req->buf,
 					w_index, w_value & 0xff);

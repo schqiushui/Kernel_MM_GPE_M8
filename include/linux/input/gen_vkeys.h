@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, HTC Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,14 +11,19 @@
  */
 
 #ifndef __GEN_VKEYS_
+#define VKEY_LOGI(fmt, args...) printk(KERN_INFO "[TP] VK: "fmt, ##args)
+#define VKEY_LOGE(fmt, args...) printk(KERN_ERR "[TP][ERR] VK: "fmt, ##args)
+
+struct vkeys_button_data {
+	int keycode;
+	int center_x;
+	int center_y;
+	const char *range;
+};
+
 struct vkeys_platform_data {
 	const char *name;
-	int disp_maxx;
-	int disp_maxy;
-	int panel_maxx;
-	int panel_maxy;
-	int *keycodes;
 	int num_keys;
-	int y_offset;
+	struct vkeys_button_data *button;
 };
 #endif

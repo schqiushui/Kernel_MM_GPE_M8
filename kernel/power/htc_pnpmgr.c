@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/cpu.h>
+#include <linux/htc_fda.h>
 
 #include "power.h"
 
@@ -604,7 +605,8 @@ static int __init pnpmgr_init(void)
 
 	if (!pnpmgr_kobj) {
 		pr_err("%s: Can not allocate enough memory for pnpmgr.\n", __func__);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	cpufreq_kobj = kobject_create_and_add("cpufreq", pnpmgr_kobj);
@@ -617,7 +619,8 @@ static int __init pnpmgr_init(void)
 
 	if (!cpufreq_kobj || !hotplug_kobj || !thermal_kobj || !apps_kobj || !sysinfo_kobj || !battery_kobj || !adaptive_policy_kobj) {
 		pr_err("%s: Can not allocate enough memory.\n", __func__);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	ret = sysfs_create_group(pnpmgr_kobj, &pnpmgr_attr_group);
@@ -631,7 +634,8 @@ static int __init pnpmgr_init(void)
 
 	if (ret) {
 		pr_err("%s: sysfs_create_group failed\n", __func__);
-		return ret;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -639,6 +643,10 @@ static int __init pnpmgr_init(void)
 #endif
 
 	return 0;
+
+err:
+	fda_log_pnp("pnpmgr init fail\n");
+	return ret;
 }
 
 static void  __exit pnpmgr_exit(void)

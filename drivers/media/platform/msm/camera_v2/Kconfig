@@ -302,12 +302,38 @@ config OV13850_1140M
 	---help---
 	  Support for OV13850_1140M sensor driver.
 
+config OV13850_A16
+	bool "Sensor OV13850_A16 (BAYER 13M)"
+	depends on MSMB_CAMERA
+	---help---
+	  Support for ov13850_A16 sensor driver.
+
+config OV13850_A56
+	bool "Sensor OV13850_A56 (BAYER 13M)"
+	depends on MSMB_CAMERA
+	---help---
+	  Support for ov13850_a56 sensor driver.
+
 config OV2722
 	bool "Sensor ov2722"
 	depends on MSMB_CAMERA
 	default n
 	---help---
 	  Support for OV2722 sensor driver.
+
+config S5K5E_A16
+	bool "Sensor S5K5E_A16"
+	depends on MSMB_CAMERA
+	default n
+	---help---
+	  Support for S5K5E_A16 sensor driver.
+
+config S5K5E2_A56_TWOLANE
+	bool "Sensor S5K5E2_A56_TWOLANE"
+	depends on MSMB_CAMERA
+	default n
+	---help---
+	  Support for S5K5E2_A56_TWOLANE sensor driver.
 
 config S5K5E_ONELANE
 	bool "Sensor S5K5E_ONELANE"
@@ -337,6 +363,7 @@ config MSM_V4L2_VIDEO_OVERLAY_DEVICE
 	  overlay driver. This allows video rendering
 	  apps to render overlaid video using Video4Linux2
 	  APIs, by using /dev/videoX device
+
 
 config MSMB_JPEG
 	tristate "Qualcomm MSM Jpeg Encoder Engine support"

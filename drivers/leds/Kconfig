@@ -298,6 +298,12 @@ config LEDS_PCA9633
 	  This option enables support for LEDs connected to the PCA9633
 	  LED driver chip accessed via the I2C bus.
 
+config HTC_FLASHLIGHT_COMMON
+        tristate "Common flashlight API for camera"
+	depends on FLASHLIGHT_TPS61310_FRONT || FLASHLIGHT_LM3643 || FLASHLIGHT_TPS61310 || FLASHLIGHT_NCP6951
+        help
+          Say Y here to enable the common API for front & main flashlight utilization
+
 config LEDS_QPNP
 	tristate "Support for QPNP LEDs"
 	depends on SPMI && OF_SPMI
@@ -613,6 +619,16 @@ config LEDS_LP5521_HTC
 	  LP5521 LED driver. It is 3 channel chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
+
+config LEDS_LP5521_HTC_VK
+	tristate "LED Support for N.S. LP5521 LED driver chip"
+	depends on LEDS_CLASS && I2C
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LP5521 LED driver. It is 3 channel chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
+	  This is only for virtual key led.
 
 config LEDS_TRIGGER_SLEEP
 	tristate "LED Sleep Mode Trigger"

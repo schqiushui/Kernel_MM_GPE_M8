@@ -93,6 +93,16 @@
 #endif
 #define HX_RST_PIN_FUNC
 #define HX_LOADIN_CONFIG
+#define HX_DOT_VIEW
+
+#ifdef HX_DOT_VIEW
+#if defined(CONFIG_AK8789_HALLSENSOR)
+	#include <linux/hall_sensor.h>
+#elif defined(CONFIG_AK8789_HALLSENSOR_R2)
+	#include <linux/hall_sensor_r2.h>
+#endif	
+#endif
+
 #if defined(CONFIG_TOUCHSCREEN_HIMAX_ESD_EN)
 #define HX_ESD_WORKAROUND
 #endif
@@ -134,6 +144,11 @@ struct himax_config {
 	uint8_t  sensor_id;
 	uint8_t  fw_ver;
 	uint16_t length;
+#ifdef HX_DOT_VIEW
+#if defined(CONFIG_AK8789_HALLSENSOR) || defined(CONFIG_AK8789_HALLSENSOR_R2)
+	bool cover_support;
+#endif	
+#endif
 	uint32_t tw_x_min;
 	uint32_t tw_x_max;
 	uint32_t tw_y_min;
@@ -258,13 +273,22 @@ struct himax_ts_data {
 #ifdef HX_RST_PIN_FUNC
 	int rst_gpio;
 #endif
-
+	uint8_t chosen_config_process;
+#ifdef CONFIG_SYNC_TOUCH_STATUS
+	int switch_gpio;
+	int i2c_to_mcu;
+#endif
 #ifdef HX_SMART_WAKEUP
 	uint8_t SMWP_enable;
 	struct wake_lock ts_SMWP_wake_lock;
 #endif
 #ifdef HX_DOT_VIEW
+#if defined(CONFIG_AK8789_HALLSENSOR) || defined(CONFIG_AK8789_HALLSENSOR_R2)
+	bool cover_support;
 	uint8_t cover_enable;
+	uint16_t hall_block_touch_time;
+	uint8_t hall_block_touch_event;
+#endif	
 #endif
 #ifdef HX_USB_DETECT
 	uint8_t usb_connected;
@@ -273,6 +297,7 @@ struct himax_ts_data {
     struct pinctrl *ts_pinctrl;
     struct pinctrl_state *gpio_state_active;
     struct pinctrl_state *gpio_state_suspend;
+    struct mutex ts_report_mutex;
 
     u8 *fw_data_start;
     uint32_t fw_size;
@@ -369,12 +394,20 @@ static unsigned char E_IrefTable_7[16][2] = { {0x20,0x0C},{0x20,0x1C},{0x20,0x2C
 	static bool 	config_bank_reg 				= false;
 #endif
 
+static u8 HW_RESET_ACTIVATE = 1;
 #ifdef HX_ESD_WORKAROUND
 	static u8 		ESD_RESET_ACTIVATE 	= 1;
 	static u8 		ESD_COUNTER 		= 0;
 	
 	static u8		ESD_R36_FAIL		= 0;
 #endif
+
+#define CUSTOMER_INFO_LENGTH 3
+enum loading_config_process {
+	LOAD_NO_CFG	= false,
+	LOAD_ALL_CFG	= true,
+	LOAD_SHORT_CFG	= true + 1,
+};
 
 #ifdef HX_TP_SYS_DIAG
 #ifdef HX_TP_SYS_2T2R
@@ -470,10 +503,6 @@ static unsigned char E_IrefTable_7[16][2] = { {0x20,0x0C},{0x20,0x1C},{0x20,0x2C
 
 #ifdef HX_SMART_WAKEUP
 	static bool FAKE_POWER_KEY_SEND = false;
-#endif
-
-#ifdef HX_DOT_VIEW
-	#include <linux/hall_sensor.h>
 #endif
 
 #ifdef HX_AUTO_UPDATE_CONFIG

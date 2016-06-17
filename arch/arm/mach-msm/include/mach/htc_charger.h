@@ -53,7 +53,7 @@ enum htc_power_source_type {
 	HTC_PWR_SOURCE_TYPE_MHL_AC,
 	HTC_PWR_SOURCE_TYPE_DETECTING,
 	HTC_PWR_SOURCE_TYPE_UNKNOWN_USB,
-	HTC_PWR_SOURCE_TYPE_PQM_FASTCHARGE,
+	HTC_PWR_SOURCE_TYPE_CABLE_INSERT,
 	HTC_PWR_SOURCE_TYPE_MAX = 255,
 };
 
@@ -69,6 +69,7 @@ enum htc_extchg_event_type {
 };
 
 enum htc_ftm_power_source_type {
+	HTC_FTM_PWR_SOURCE_TYPE_NONE_STOP = -1,
 	HTC_FTM_PWR_SOURCE_TYPE_NONE = 0,
 	HTC_FTM_PWR_SOURCE_TYPE_USB,
 	HTC_FTM_PWR_SOURCE_TYPE_AC,
@@ -98,6 +99,10 @@ struct htc_charger {
 #else
 	int (*set_limit_charge_enable)(bool enable);
 #endif
+
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+	int (*set_limit_charge_on_high_vol_enable)(bool enable);
+#endif
 	int (*set_limit_input_current)(bool enable, int reason);
 	int (*set_chg_iusbmax)(int val);
 	int (*set_chg_curr_settled)(int val);
@@ -122,6 +127,11 @@ struct htc_charger {
 	int (*get_input_voltage_regulation)(void);
 	int (*store_battery_charger_data)(void);
 	int (*set_ftm_charge_enable_type)(enum htc_ftm_power_source_type ftm_src);
+	int (*is_hv_battery_detection)(int *result);
+	int (*is_bad_cable_used)(int *result);
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+	int (*fake_chg_uv_irq_handler)(void);
+#endif
 };
 
 int htc_charger_event_notify(enum htc_charger_event);

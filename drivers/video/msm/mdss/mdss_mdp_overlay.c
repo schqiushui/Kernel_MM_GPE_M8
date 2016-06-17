@@ -2714,8 +2714,14 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 		return -ENODEV;
 	}
 
-	if (!mdp5_data->ctl->power_on)
+	if (!mdp5_data->ctl->power_on) {
+		if (mfd->panel_reconfig) {
+			mdp5_data->borderfill_enable = false;
+			mdss_mdp_ctl_destroy(mdp5_data->ctl);
+			mdp5_data->ctl = NULL;
+		}
 		return 0;
+	}
 
 	mdss_mdp_overlay_free_fb_pipe(mfd);
 

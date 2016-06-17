@@ -14,6 +14,9 @@
 #include <asm/div64.h>
 #include "msm_isp_util.h"
 #include "msm_isp_axi_util.h"
+#include <linux/time.h>
+#define SENSOR_ISP_MAX 2
+
 int g_subcam_SOF = 0;
 extern int g_subcam_vfe_intf;
 int g_subcam_no_ack = 0;
@@ -421,6 +424,12 @@ static void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
 void msm_isp_sof_notify(struct vfe_device *vfe_dev,
 	enum msm_vfe_input_src frame_src, struct msm_isp_timestamp *ts) {
 	struct msm_isp_event_data sof_event;
+	
+	static struct timeval m_last[SENSOR_ISP_MAX];
+	struct timeval m_curr;
+	static uint32_t last_frame_id[SENSOR_ISP_MAX];
+	uint32_t time_diff = 0;
+	
 	switch (frame_src) {
 	case VFE_PIX_0:
 		ISP_DBG("%s: PIX0 frame id: %lu\n", __func__,
@@ -435,7 +444,25 @@ void msm_isp_sof_notify(struct vfe_device *vfe_dev,
 		
 		
 		if(vfe_dev->pdev->id == g_subcam_vfe_intf && g_subcam_SOF <100)
-		g_subcam_SOF ++;
+			g_subcam_SOF ++;
+		
+		
+		if(vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id == 0)
+		{
+			do_gettimeofday(&m_last[vfe_dev->pdev->id]);
+			last_frame_id[vfe_dev->pdev->id] = 0;
+		}
+		else
+		{
+			do_gettimeofday(&m_curr);
+			time_diff = (m_curr.tv_sec-m_last[vfe_dev->pdev->id].tv_sec)*1000000 + (m_curr.tv_usec-m_last[vfe_dev->pdev->id].tv_usec);
+			if(time_diff >= 1000000)   
+			{
+				pr_info("[CAM]%s:(%d)PIX0 frame id: %lu, fps: %ld\n", __func__, vfe_dev->pdev->id, vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id, (vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id-last_frame_id[vfe_dev->pdev->id]));
+				m_last[vfe_dev->pdev->id] = m_curr;
+				last_frame_id[vfe_dev->pdev->id] = vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id;
+			}
+		}
 		
 		vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id++;
 		if (vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id == 0)

@@ -127,7 +127,7 @@ int set_restart_to_oem(unsigned int code, const char *msg)
 	char oem_msg[SZ_DIAG_ERR_MSG] = "";
 
 	if (msg == NULL)
-		sprintf(oem_msg, "oem-%x", code);
+		snprintf(oem_msg, sizeof(oem_msg), "oem-%x", code);
 	else
 		strncpy(oem_msg, msg, (strlen(msg) >= SZ_DIAG_ERR_MSG)? (SZ_DIAG_ERR_MSG - 1): strlen(msg));
 

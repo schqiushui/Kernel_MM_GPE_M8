@@ -253,7 +253,7 @@ int msm_v4l2_htc_set_callingpid_name(struct file *file, void *fh,
 			vidc_inst, b->call_pid, b->process_name);
 	}
 	vidc_inst->call_pid = b->call_pid;
-	strncpy(vidc_inst->process_name, b->process_name, sizeof(vidc_inst->process_name));
+	strncpy(vidc_inst->process_name, b->process_name, sizeof(vidc_inst->process_name) -1);
 	vidc_inst->process_name[sizeof(vidc_inst->process_name)-1] = '\0';
 	return 0;
 }

@@ -793,8 +793,18 @@ static ssize_t disable_reset_store(struct device *dev,
 	spin_lock_irqsave(&ds->irq_lock, irqflags);
 	wake_lock(&disable_reset_wake_lock);
 	ds->disable_reset_flag = value;
-	queue_delayed_work(ds->disable_reset_wq, &ds->disable_reset_work,
-			msecs_to_jiffies(ds->disable_reset_flag * 1000));
+	if(!queue_delayed_work(ds->disable_reset_wq, &ds->disable_reset_work,
+			msecs_to_jiffies(ds->disable_reset_flag * 1000)))
+	{
+		if (cancel_delayed_work(&ds->disable_reset_work))
+		{
+			if(!queue_delayed_work(ds->disable_reset_wq, &ds->disable_reset_work,
+						msecs_to_jiffies(ds->disable_reset_flag * 1000)))
+				KEY_LOGI("%s: queue the new disable_reset_work unsuccessfully\n",__func__);
+		} else
+			KEY_LOGI("%s: cancel disable_reset_work unsuccessfully\n",__func__);
+
+	}
 
 	for (i = 0; i < ds->info->keymap_size; i++, key_entry++, key_state++)
 		if (key_entry->code == KEY_POWER)
@@ -802,7 +812,8 @@ static ssize_t disable_reset_store(struct device *dev,
 	key_entry = ds->info->keymap;
 	npolarity = !(gpio_flags & GPIOEDF_ACTIVE_HIGH);
 #ifdef CONFIG_POWER_KEY_LED
-	handle_power_key_led(KEY_POWER, 0);
+	KEY_LOGI("[PWR] start count for power key led off\n");
+	schedule_delayed_work(&power_key_led_off_work, PWRKEYLEDOFF_DELAY);
 #endif
 
 	if (__cancel_delayed_work(&power_key_check_reset_work))

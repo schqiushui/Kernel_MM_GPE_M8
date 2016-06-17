@@ -1755,6 +1755,61 @@ static ssize_t ps_enable_store(struct device *dev,
 }
 
 static DEVICE_ATTR(ps_adc, 0664, ps_adc_show, ps_enable_store);
+
+static ssize_t flush_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = sprintf(buf, "%d\n", 1);
+
+	return ret;
+}
+
+static ssize_t flush_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cm3629_info *lpi = lp_info;
+
+	D("[PS][cm3629] %s++:\n", __func__);
+
+	input_report_abs(lpi->ps_input_dev, ABS_DISTANCE, 7);
+	input_sync(lpi->ps_input_dev);
+
+	return count;
+}
+
+static DEVICE_ATTR(flush, 0664, flush_show, flush_store);
+
+
+static ssize_t ls_flush_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = sprintf(buf, "%d\n", 1);
+
+	return ret;
+}
+
+static ssize_t ls_flush_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct cm3629_info *lpi = lp_info;
+
+	D("[LS][cm3629] %s++:\n", __func__);
+
+	input_report_abs(lpi->ls_input_dev, ABS_MISC, 77);
+	input_sync(lpi->ls_input_dev);
+
+	return count;
+}
+
+static DEVICE_ATTR(ls_flush, 0664, ls_flush_show, ls_flush_store);
+
+
 static int kcalibrated;
 static ssize_t ps_kadc_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -3256,6 +3311,10 @@ static int __devinit cm3629_probe(struct i2c_client *client,
 	if (ret)
 		goto err_create_ls_device_file;
 
+	ret = device_create_file(lpi->ls_dev, &dev_attr_ls_flush);
+	if (ret)
+		goto err_create_ls_device_file;
+
 	lpi->ps_dev = device_create(lpi->cm3629_class,
 				NULL, 0, "%s", "proximity");
 	if (unlikely(IS_ERR(lpi->ps_dev))) {
@@ -3303,6 +3362,11 @@ static int __devinit cm3629_probe(struct i2c_client *client,
 	ret = device_create_file(lpi->ps_dev, &dev_attr_p_status);
 	if (ret)
 		goto err_create_ps_device;
+
+	ret = device_create_file(lpi->ps_dev, &dev_attr_flush);
+	if (ret)
+		goto err_create_ps_device;
+
 #ifdef CONFIG_FB
 	lpi->cm3629_fb_wq = create_singlethread_workqueue("CM3629_FB");
 	if (!lpi->cm3629_fb_wq) {

@@ -36,6 +36,9 @@
 #ifdef CONFIG_HTC_BATT_8960
 #include "mach/htc_battery_cell.h"
 #endif
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+#include <linux/smb358-charger.h>
+#endif
 
 #ifdef pr_debug
 #undef pr_debug
@@ -413,7 +416,11 @@ static int get_rbatt(struct qpnp_bms_chip *chip,
 int emmc_misc_write(int val, int offset);
 static int calculate_cc(struct qpnp_bms_chip *chip, int64_t cc, int cc_type, int clear_cc);
 int pm8941_bms_get_percent_charge(struct qpnp_bms_chip *chip);
+int pm8941_bms_get_batt_temperature(int *result);
 
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+int bms_probe_flag = 0;
+#endif
 static bool bms_reset;
 static struct qpnp_bms_chip *the_chip;
 static bool flag_enable_bms_charger_log;
@@ -727,9 +734,13 @@ static int get_battery_current(struct qpnp_bms_chip *chip, int *result_ua)
 	temp_current = div_s64((vsense_uv * 1000000LL),
 				(int)chip->r_sense_uohm);
 
+#if (!(defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL) || defined(CONFIG_MACH_DUMMY)))
 	rc = qpnp_iadc_comp_result(chip->iadc_dev, &temp_current);
 	if (rc)
 		pr_debug("error compensation failed: %d\n", rc);
+#else
+	rc = 0;
+#endif
 
 	*result_ua = temp_current;
 	pr_debug("err compensated ibat=%duA\n", *result_ua);
@@ -1314,9 +1325,15 @@ static int calculate_cc(struct qpnp_bms_chip *chip, int64_t cc,
 					- calibration.offset_raw);
 	cc_pvh = cc_uv_to_pvh(cc_voltage_uv);
 	cc_uah = div_s64(cc_pvh, chip->r_sense_uohm);
+
+
+#if (!(defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL) || defined(CONFIG_MACH_DUMMY)))
 	rc = qpnp_iadc_comp_result(chip->iadc_dev, &cc_uah);
 	if (rc)
 		pr_debug("error compensation failed: %d\n", rc);
+#else
+	rc = 0;
+#endif
 	if (clear_cc == RESET) {
 		pr_info("software_%scc = %lld, added cc_uah = %lld\n",
 				cc_type == SHDW_CC ? "sw_" : "",
@@ -2135,7 +2152,7 @@ static int report_voltage_based_soc(struct qpnp_bms_chip *chip)
 #define REPORT_SOC_WAIT_MS		10000
 static int report_cc_based_soc(struct qpnp_bms_chip *chip)
 {
-	int soc, soc_change;
+	int soc = 0, soc_change = 0;
 	int time_since_last_change_sec, charge_time_sec = 0;
 	unsigned long last_change_sec;
 	struct timespec now;
@@ -2517,7 +2534,7 @@ static int clamp_soc_based_on_voltage(struct qpnp_bms_chip *chip, int soc)
 		return soc;
 	}
 
-	rc = pm8941_get_batt_temperature(&batt_temp);
+	rc = pm8941_bms_get_batt_temperature(&batt_temp);
 	if (rc) {
 		pr_err("get temperature failed err = %d\n", rc);
 		return soc;
@@ -2673,9 +2690,12 @@ static int calculate_state_of_charge(struct qpnp_bms_chip *chip,
 					int batt_temp)
 {
 	struct soc_params params;
-	int soc, previous_soc, shutdown_soc, new_calculated_soc;
+	int soc = 0, previous_soc = 0, shutdown_soc = 0, new_calculated_soc = 0;
 	int remaining_usable_charge_uah;
-
+	int bms_reveal_FCC = 0;
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
+	int id_raw_bms = 0;
+#endif
 	calculate_soc_params(chip, raw, &params, batt_temp);
 	if (!is_battery_present(chip)) {
 		pr_debug("battery gone, reporting 100\n");
@@ -2760,6 +2780,20 @@ done_calculating:
 	} else {
 		report_state_of_charge(chip);
 	}
+
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
+	id_raw_bms = ((int)read_battery_id(chip))/1000 ;
+	pr_info(" id_raw_bms = %d\n ",id_raw_bms);
+	if((201 <= id_raw_bms  && id_raw_bms <= 330) || (451 <= id_raw_bms && id_raw_bms <= 650)){
+		bms_reveal_FCC = 2600000;
+	}
+	else{ 
+		bms_reveal_FCC = bms_dbg.fcc_uah;
+	}
+#else
+	bms_reveal_FCC = bms_dbg.fcc_uah;
+#endif
+
 	pr_info("FCC=%d,UC=%d,RC=%d,CC_uAh/ori=%d/%d,RUC=%d,SOC=%d,raw_soc=%d,"
 		       "start_pc=%d,end_pc=%d,OCV_uV/ori=%d/%d,OCV_raw=%x,"
 		       "rbatt=%d,rbatt_sf=%d,batt_temp=%d,soc_rbatt=%d,"
@@ -2769,7 +2803,7 @@ done_calculating:
 		       "shdw_cc_raw=%lld,ocv_at_100=%x,"
 		       "cc_backup=%d,ocv_backup=%d,consistent_flag=%d,is_ocv_update_start=%d,"
 		       "no_hw_ocv_ms=%ld\n",
-			bms_dbg.fcc_uah, bms_dbg.uuc_uah, bms_dbg.rc_uah, bms_dbg.cc_uah,bms_dbg.ori_cc_uah,
+			bms_reveal_FCC, bms_dbg.uuc_uah, bms_dbg.rc_uah, bms_dbg.cc_uah,bms_dbg.ori_cc_uah,
 			bms_dbg.ruc_uah, soc, bms_dbg.raw_soc,
 			chip->start_soc, chip->end_soc,
 			raw->last_good_ocv_uv, bms_dbg.last_ocv_raw_uv, raw->last_good_ocv_raw,
@@ -3555,7 +3589,7 @@ static void batfet_open_work(struct work_struct *work)
 {
 	int i;
 	int rc;
-	int result_ua;
+	int result_ua = 0;
 	u8 orig_delay, sample_delay;
 	struct qpnp_bms_chip *chip = container_of(work,
 				struct qpnp_bms_chip,
@@ -3862,7 +3896,7 @@ int emmc_misc_write(int val, int offset)
 		pr_warn("unknown partition number for misc partition\n");
 		return 0;
 	}
-	sprintf(filename, "/dev/block/mmcblk0p%d", pnum);
+	snprintf(filename,31,"/dev/block/mmcblk0p%d", pnum);
 
 	filp = filp_open(filename, O_RDWR, 0);
 	if (IS_ERR(filp)) {
@@ -3873,7 +3907,7 @@ int emmc_misc_write(int val, int offset)
 	filp->f_pos = offset;
 	nread = kernel_write(filp, (char *)&w_val, sizeof(int), filp->f_pos);
 	pr_info("%X (%d)\n", w_val, nread);
-
+	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
 
 	return 1;
@@ -4189,7 +4223,9 @@ int pm8941_bms_get_attr_text(char *buf, int size)
 	int batt_temp, rc, soc_rbatt, shdw_cc_uah;
 	int remaining_usable_charge_uah;
 	struct qpnp_vadc_result result;
-
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
+	int bms_id_raw = 0;
+#endif
 	if (!the_chip) {
 		pr_err("driver not initialized\n");
 		return 0;
@@ -4286,8 +4322,21 @@ int pm8941_bms_get_attr_text(char *buf, int size)
 			"pc_unusable(%%): %d;\n", bms_dbg.pc_unusable);
 	len += scnprintf(buf + len, size - len,
 			"rc_pc(%%): %d;\n", bms_dbg.rc_pc);
+#if defined(CONFIG_MACH_M8) || defined(CONFIG_MACH_DUMMY)
+	bms_id_raw = ((int)read_battery_id(the_chip))/1000 ;
+	pr_info(" id_raw = %d\n ",bms_id_raw);
+	if((201 <= bms_id_raw && bms_id_raw <= 330) || (451 <= bms_id_raw && bms_id_raw <= 650)){
+		len += scnprintf(buf + len, size - len,
+				"fcc(uAh): %d;\n", 2600000);
+	}
+	else{
+		len += scnprintf(buf + len, size - len,
+				"fcc(uAh): %d;\n", params.fcc_uah);
+	}
+#else
 	len += scnprintf(buf + len, size - len,
 			"fcc(uAh): %d;\n", params.fcc_uah);
+#endif
 	len += scnprintf(buf + len, size - len,
 			"unusable_charge(uAh): %d;\n", params.uuc_uah);
 	len += scnprintf(buf + len, size - len,
@@ -4682,6 +4731,29 @@ int pm8941_qb_mode_pwr_consumption_check(unsigned long time_since_last_update_ms
 	} else {
 		
 	}
+	return 0;
+}
+
+
+int pm8941_bms_get_batt_temperature(int *value)
+{
+	int rc = 0;
+	struct qpnp_vadc_result result;
+
+	if (!the_chip) {
+		pr_warn("called before init\n");
+		return -EINVAL;
+	}
+
+	rc = qpnp_vadc_read(the_chip->vadc_dev, LR_MUX1_BATT_THERM,
+								&result);
+	if (rc) {
+		pr_err("error reading vadc LR_MUX1_BATT_THERM = %d, rc = %d\n",
+			LR_MUX1_BATT_THERM, rc);
+		return rc;
+	}
+
+	*value = (int)result.physical;
 	return 0;
 }
 
@@ -5476,10 +5548,10 @@ static int __devinit qpnp_bms_probe(struct spmi_device *spmi)
 {
 	struct qpnp_bms_chip *chip;
 	bool warm_reset;
-	int rc, vbatt, curr_soc, batt_temp;
+	int rc, vbatt, curr_soc, batt_temp = 0;
 	struct timespec xtime;
 	unsigned long currtime_ms;
-	struct raw_soc_params raw;
+	struct raw_soc_params raw = {0};
 	struct soc_params params;
 
 	chip = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_bms_chip),
@@ -5638,7 +5710,7 @@ static int __devinit qpnp_bms_probe(struct spmi_device *spmi)
 	}
 
 	curr_soc = pm8941_bms_get_percent_charge(chip);
-	rc = pm8941_get_batt_temperature(&batt_temp);
+	rc = pm8941_bms_get_batt_temperature(&batt_temp);
 	if (rc)
 		pr_err("get temperature failed err = %d\n", rc);
 
@@ -5705,8 +5777,12 @@ static int __devinit qpnp_bms_probe(struct spmi_device *spmi)
 		goto unregister_dc;
 	}
 
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+	bms_probe_flag = 1;
+#endif
 	htc_gauge_event_notify(HTC_GAUGE_EVENT_READY);
 
+#if (!(defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)))
 	
 	pm8941_fake_chg_gone_irq_handler();
 
@@ -5715,6 +5791,7 @@ static int __devinit qpnp_bms_probe(struct spmi_device *spmi)
 
 	
 	pm8941_fake_coarse_det_usb_irq_handler();
+#endif
 
 	pr_info("curr_soc=%d,new_boot_soc:%d,stored_soc:%d,vbatt=%d,OCV=%d,r_sense_uohm=%u,"
 			"warm_reset=%d,raw.cc:%lld,stored_cc:%d,cc_backup:%d,stored_ocv:%d,"
@@ -5882,7 +5959,12 @@ static void __exit qpnp_bms_exit(void)
 	return spmi_driver_unregister(&qpnp_bms_driver);
 }
 
+#if defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_A56_UL)
+late_initcall(qpnp_bms_init);
+#else
 module_init(qpnp_bms_init);
+#endif
+
 module_exit(qpnp_bms_exit);
 
 MODULE_DESCRIPTION("QPNP BMS Driver");

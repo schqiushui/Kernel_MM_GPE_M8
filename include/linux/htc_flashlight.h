@@ -1,6 +1,7 @@
 /*
- * arch/arm/mach-msm/include/mach/msm_flashlight.h - The flashlight header
- * Copyright (C) 2009  HTC Corporation
+ * include/linux/htc_flashlight.h - The flashlight header
+ *
+ * Copyright (C) 2014-2015 HTC Corporation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef __HTC_FLASHLIGHT_H
@@ -77,7 +74,7 @@ enum flashlight_brightness_attribute_definition
     FBAD_FULL       = 255, /* flash 750mA */
 };
 
-#if defined(CONFIG_FLASHLIGHT_TPS61310) ||defined(CONFIG_FLASHLIGHT_TPS61310_FRONT)
+#if defined(CONFIG_FLASHLIGHT_TPS61310) || defined(CONFIG_FLASHLIGHT_TPS61310_FRONT)
 struct TPS61310_flashlight_platform_data {
 	void (*gpio_init) (void);
 	uint32_t flash_duration_ms;
@@ -93,7 +90,12 @@ struct TPS61310_flashlight_platform_data {
 };
 #endif
 
-#ifdef CONFIG_FLASHLIGHT_TPS61310
+#if defined(CONFIG_HTC_FLASHLIGHT_COMMON)
+extern int (*htc_flash_main)(int ,int);
+extern int (*htc_torch_main)(int ,int);
+extern int (*htc_flash_front)(int ,int);
+extern int (*htc_torch_front)(int ,int);
+#elif defined(CONFIG_FLASHLIGHT_TPS61310)
 int tps61310_flashlight_control(int mode);
 int tps61310_flashlight_mode(int mode);
 int tps61310_flashlight_mode2(int mode2, int mode13);

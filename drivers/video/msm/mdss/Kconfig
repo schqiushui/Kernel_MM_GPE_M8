@@ -85,3 +85,9 @@ config MHL_MONITOR_WORKAROUND
 	Support the MHL function in some monitor.
 	Some monitor can't full support HDMI spec.
 	Workaound for this kind of issue
+
+config FB_MSM_UNDERFLOW_BLACK
+	bool "Set underflow color as black"
+	depends on FB_MSM_MDSS
+	default n
+

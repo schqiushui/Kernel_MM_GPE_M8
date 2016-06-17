@@ -603,6 +603,16 @@ config QPNP_VIBRATOR
 		VIB_DRV_N line and can be controlled manually or by the DEST lines.
 		It uses the android timed-output framework.
 
+config INPUT_DRV260X_HAPTICS
+	tristate "TI DRV260X haptics support"
+	depends on INPUT && I2C && GPIOLIB
+	select INPUT_FF_MEMLESS
+	select REGMAP_I2C
+	help
+		Say Y to enable support for the TI DRV260X haptics driver.
+		To compile this driver as a module, choose M here: the
+		module will be called drv260x-haptics.
+
 config PMIC8XXX_NFC
 	tristate "Qualcomm PM8XXX support for Near Field Communication"
 	depends on MFD_PM8XXX

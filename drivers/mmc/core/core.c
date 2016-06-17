@@ -1590,7 +1590,9 @@ void mmc_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
 
-	WARN_ON(!host->claimed);
+	
+	if (!host->claimed)
+		pr_info("%s: mmc host was released.\n", mmc_hostname(host));
 
 	if (host->ops->disable && host->claim_cnt == 1)
 		host->ops->disable(host);

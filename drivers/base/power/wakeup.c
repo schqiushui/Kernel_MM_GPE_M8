@@ -570,9 +570,9 @@ void htc_print_wakeup_source(struct wakeup_source *ws)
                 if (ws->timer_expires) {
                         long timeout = ws->timer_expires - jiffies;
                         if (timeout > 0)
-                                printk(" '%s', time left %ld ticks; ", ws->name, timeout);
+                                printk(KERN_CONT " '%s', time left %ld ticks; ", ws->name, timeout);
                 } else
-                        printk(" '%s' ", ws->name);
+                        printk(KERN_CONT " '%s' ", ws->name);
         }
 }
 
@@ -586,7 +586,7 @@ void htc_print_active_wakeup_sources(void)
         list_for_each_entry_rcu(ws, &wakeup_sources, entry)
                 htc_print_wakeup_source(ws);
         spin_unlock_irqrestore(&events_lock, flags);
-        printk("\n");
+        printk(KERN_CONT "\n");
 }
 #endif
 

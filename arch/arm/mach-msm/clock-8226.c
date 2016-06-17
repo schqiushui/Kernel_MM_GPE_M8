@@ -3749,7 +3749,11 @@ static void __init msm8226_clock_pre_init(void)
 	reg_init();
 
 	
+#if (defined(CONFIG_OV13850_A56) || defined(CONFIG_OV13850_A16))
+    if (1) {
+#else
 	if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) == 2) {
+#endif
 		cpp_clk_src.c.fmax = camss_vfe_cpp_fmax_v2;
 		vfe0_clk_src.c.fmax = camss_vfe_vfe0_fmax_v2;
 	}

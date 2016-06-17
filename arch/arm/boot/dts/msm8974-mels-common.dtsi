@@ -505,6 +505,7 @@
 		/include/ "batterydata-m8-id1.dtsi"
 		/include/ "batterydata-m8-id2.dtsi"
 		/include/ "batterydata-m8-id3.dtsi"
+		/include/ "batterydata-m8-id4.dtsi"
 		/include/ "batterydata-m8-unknown-id.dtsi"
 	};
 };

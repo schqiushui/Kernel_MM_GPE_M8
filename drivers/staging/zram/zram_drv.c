@@ -508,6 +508,10 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		copy_page(cmem, src);
 		kunmap_atomic(src);
 	} else {
+		if (unlikely(!src)) {
+			ret = -ENOMEM;
+			goto out;
+		}
 		memcpy(cmem, src, clen);
 	}
 
@@ -850,7 +854,8 @@ static int create_device(struct zram *zram, int device_id)
 	zram->disk->private_data = zram;
 	snprintf(zram->disk->disk_name, 16, "zram%d", device_id);
 
-	/* Actual capacity set using syfs (/sys/block/zram<id>/disksize */
+	__set_bit(QUEUE_FLAG_FAST, &zram->queue->queue_flags);
+	
 	set_capacity(zram->disk, 0);
 
 	/*

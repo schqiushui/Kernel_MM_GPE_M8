@@ -863,7 +863,8 @@ err:
 static void adb_cleanup(void)
 {
 	misc_deregister(&adb_device);
-	misc_deregister(&adb_enable_device);
+	if ((board_mfg_mode() != 0) || (board_get_usb_ats() == 1))
+		misc_deregister(&adb_enable_device);
 
 	kfree(_adb_dev);
 	_adb_dev = NULL;

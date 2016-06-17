@@ -62,50 +62,71 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		return -EINVAL;
 	}
 	switch (cfg->cfgtype) {
-	case MSM_CAMERA_LED_OFF:
-        #ifndef CONFIG_FLASHLIGHT_TPS61310 
-        led_trigger_event(fctrl->led_trigger[0], 0);
-        #else
-        tps61310_flashlight_control(FL_MODE_OFF);
-        #endif 
-        break;
-
-	case MSM_CAMERA_LED_LOW:
-        #ifndef CONFIG_FLASHLIGHT_TPS61310 
-        led_trigger_event(fctrl->led_trigger[0], fctrl->op_current[0] / 2);
-        #else
-        tps61310_flashlight_control(FL_MODE_PRE_FLASH);
-        #endif 
-        break;
-
-	case MSM_CAMERA_LED_HIGH:
-        #ifndef CONFIG_FLASHLIGHT_TPS61310 
-        led_trigger_event(fctrl->led_trigger[0], fctrl->op_current[0]);
-        #else
-        pr_info("[CAM][FL] called linear flashlight current value %d", (int)cfg->ma_value);
-        if (cfg->ma_value == 0)
-          tps61310_flashlight_control(FL_MODE_FLASH_LEVEL7);
-        else{
-          int led1 = (int)cfg->ma_value & 0xFFFF;
-          int led2 = (cfg->ma_value & 0xFFFF0000)>>16;
-          pr_info("[CAM][FL] led1[%d]led2[%d]", led1, led2);
-          if(led1 == 1500 && led2 == 0){
-              tps61310_flashlight_mode(led1);
-          }else{
-              tps61310_flashlight_mode2(led1, led2);
-          }
-        }
-        #endif 
-        break;
-
 	case MSM_CAMERA_LED_INIT:
 	case MSM_CAMERA_LED_RELEASE:
-        #ifndef CONFIG_FLASHLIGHT_TPS61310 
-        led_trigger_event(fctrl->led_trigger[0], 0);
-        #else
-        tps61310_flashlight_control(FL_MODE_OFF);
-        #endif 
-        break;
+	case MSM_CAMERA_LED_OFF:
+#ifdef CONFIG_HTC_FLASHLIGHT_COMMON
+	if(htc_flash_main && htc_torch_main)
+	{
+		htc_flash_main(0, 0);
+		htc_torch_main(0, 0);
+	}
+	else
+		pr_err("[CAM][FL] msm_led_trigger_config, flashlight control is NULL\n");	
+#elif defined(CONFIG_FLASHLIGHT_TPS61310)
+	tps61310_flashlight_control(FL_MODE_OFF);
+#else
+	led_trigger_event(fctrl->led_trigger[0], 0);
+#endif 
+	break;
+
+	case MSM_CAMERA_LED_LOW:
+#ifdef CONFIG_HTC_FLASHLIGHT_COMMON
+	if(htc_torch_main)
+	{
+		htc_torch_main(125, 125);
+	}
+	else
+		pr_err("[CAM][FL] msm_led_trigger_config, flashlight control is NULL\n");
+#elif defined(CONFIG_FLASHLIGHT_TPS61310) 
+	tps61310_flashlight_control(FL_MODE_PRE_FLASH);
+#else
+	led_trigger_event(fctrl->led_trigger[0], fctrl->op_current[0] / 2);
+#endif 
+
+	break;
+
+	case MSM_CAMERA_LED_HIGH:
+#ifdef CONFIG_HTC_FLASHLIGHT_COMMON
+	if(htc_flash_main)
+	{
+		int led1, led2;
+		pr_info("[CAM][FL] called linear flashlight current value %d", (int)cfg->ma_value);
+		led1 = (int)(cfg->ma_value & 0xFFFF);
+		led2 = (cfg->ma_value & 0xFFFF0000)>>16;
+		pr_info("[CAM][FL] led1[%d]led2[%d]", led1, led2);		
+		htc_flash_main(led1, led2);
+	}
+	else
+		pr_err("[CAM][FL] msm_flash_high, flashlight control is NULL\n");	
+#elif defined(CONFIG_FLASHLIGHT_TPS61310)
+	pr_info("[CAM][FL] called linear flashlight current value %d", (int)cfg->ma_value);
+	if (cfg->ma_value == 0)
+		tps61310_flashlight_control(FL_MODE_FLASH_LEVEL7);
+	else{
+		int led1 = (int)cfg->ma_value & 0xFFFF;
+		int led2 = (cfg->ma_value & 0xFFFF0000)>>16;
+		pr_info("[CAM][FL] led1[%d]led2[%d]", led1, led2);
+		if(led1 == 1500 && led2 == 0){
+			tps61310_flashlight_mode(led1);
+		}else{
+			tps61310_flashlight_mode2(led1, led2);
+		}
+	}	
+#else
+	led_trigger_event(fctrl->led_trigger[0], fctrl->op_current[0]);
+#endif 
+	break;
 
 	default:
 		rc = -EFAULT;
@@ -284,7 +305,7 @@ static uint16_t led_low_cap_limit_dual = 14;
 static ssize_t led_ril_status_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
        if(buf)
 	    length = sprintf(buf, "%d\n", led_ril_status_value);
 	return length;
@@ -306,7 +327,7 @@ static ssize_t led_ril_status_set(struct device *dev,
 static ssize_t led_wimax_status_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_wimax_status_value);
 	return length;
@@ -328,7 +349,7 @@ static ssize_t led_wimax_status_set(struct device *dev,
 static ssize_t led_hotspot_status_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_hotspot_status_value);
 	return length;
@@ -349,7 +370,7 @@ static ssize_t led_hotspot_status_set(struct device *dev,
 static ssize_t low_temp_limit_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_low_temp_limit);
 	return length;
@@ -358,7 +379,7 @@ static ssize_t low_temp_limit_get(struct device *dev,
 static ssize_t low_cap_limit_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_low_cap_limit);
 	return length;
@@ -367,7 +388,7 @@ static ssize_t low_cap_limit_get(struct device *dev,
 static ssize_t low_cap_limit_dual_get(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t length;
+	ssize_t length = 0;
 	if(buf)
 	    length = sprintf(buf, "%d\n", led_low_cap_limit_dual);
 	return length;

@@ -17,11 +17,11 @@ DEFINE_MSM_MUTEX(s5k5e_onelane_mut);
 static struct msm_sensor_ctrl_t s5k5e_onelane_s_ctrl;
 
 struct msm_sensor_power_setting s5k5e_onelane_power_setting[] = {
-
+#ifdef CONFIG_REGULATOR_NCP6924
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_RESET,
-		.config_val = GPIO_OUT_LOW,//GPIO_OUT_HIGH,
+		.config_val = GPIO_OUT_LOW,
 		.delay = 20,
 	},
 	{
@@ -51,7 +51,7 @@ struct msm_sensor_power_setting s5k5e_onelane_power_setting[] = {
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_RESET,
-		.config_val = GPIO_OUT_HIGH,//GPIO_OUT_LOW,
+		.config_val = GPIO_OUT_HIGH,
 		.delay = 80,
 	},
 	{
@@ -60,11 +60,54 @@ struct msm_sensor_power_setting s5k5e_onelane_power_setting[] = {
 		.config_val = 0,
 		.delay = 0,
 	},
-
+#else
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VAF,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VIO,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VANA,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VDIG,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_RESET,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_CLK,
+		.seq_val = SENSOR_CAM_MCLK,
+		.config_val = 0,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_I2C_MUX,
+		.seq_val = 0,
+		.config_val = 0,
+		.delay = 5,
+	},
+#endif
 };
 
 struct msm_sensor_power_setting s5k5e_onelane_power_down_setting[] = {
-
+#ifdef CONFIG_REGULATOR_NCP6924
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_RESET,
@@ -107,7 +150,50 @@ struct msm_sensor_power_setting s5k5e_onelane_power_down_setting[] = {
 		.config_val = 0,
 		.delay = 0,
 	},
-
+#else
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VAF,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VIO,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VANA,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VDIG,
+		.config_val = 1,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_RESET,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_CLK,
+		.seq_val = SENSOR_CAM_MCLK,
+		.config_val = 0,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_I2C_MUX,
+		.seq_val = 0,
+		.config_val = 0,
+		.delay = 5,
+	},
+#endif
 };
 
 static struct v4l2_subdev_info s5k5e_onelane_subdev_info[] = {
@@ -203,10 +289,10 @@ static int32_t s5k5e_onelane_platform_probe(struct platform_device *pdev)
 	int32_t rc = 0;
 	const struct of_device_id *match;
 	match = of_match_device(s5k5e_onelane_dt_match, &pdev->dev);
-       /*htc start: clean_li added for klocwork issue 3547*/
+       
        if(!match)
                return -ENODEV;
-       /*htc end: clean_li added for klocwork issue 3547*/
+       
 	rc = msm_sensor_platform_probe(pdev, match->data);
 	return rc;
 }
@@ -248,7 +334,6 @@ int32_t s5k5e_onelane_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
     return status;
 }
 
-//For power down sequence, keep reset pin low before Analog power off.
 int32_t s5k5e_onelane_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 {
     int32_t status;
@@ -259,7 +344,7 @@ int32_t s5k5e_onelane_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
     s_ctrl->power_setting_array.power_setting = s5k5e_onelane_power_down_setting;
     s_ctrl->power_setting_array.size = ARRAY_SIZE(s5k5e_onelane_power_down_setting);
 
-    //When release regulator, need the same data pointer from power up sequence.
+    
     for(i = 0; i < s_ctrl->power_setting_array.size;  i++)
     {
         data_size = sizeof(s5k5e_onelane_power_setting[i].data)/sizeof(void *);

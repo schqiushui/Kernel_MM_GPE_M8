@@ -119,6 +119,10 @@ struct dsiphy_pll_divider_config pll_divider_config;
 int mdss_dsi_clk_div_config(struct mdss_panel_info *panel_info,
 			    int frame_rate)
 {
+	struct mdss_panel_data *pdata  = container_of(panel_info,
+			struct mdss_panel_data, panel_info);
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = container_of(pdata,
+			struct mdss_dsi_ctrl_pdata, panel_data);
 	u32 fb_divider, rate, vco;
 	u32 div_ratio = 0;
 	u32 pll_analog_posDiv = 1;
@@ -156,7 +160,8 @@ int mdss_dsi_clk_div_config(struct mdss_panel_info *panel_info,
 
 	if ((frame_rate !=
 	     panel_info->mipi.frame_rate) ||
-	    (!panel_info->clk_rate)) {
+	    (!panel_info->clk_rate) ||
+	    ctrl_pdata->refresh_clk_rate) {
 		h_period += panel_info->lcdc.xres_pad;
 		v_period += panel_info->lcdc.yres_pad;
 
